@@ -1,36 +1,90 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Northwind Outfitters
 
-## Getting Started
+Production-ready e-commerce storefront + admin dashboard built with Next.js App Router, Prisma, and NextAuth.
 
-First, run the development server:
+## Tech Stack
+
+- Next.js 16 (App Router)
+- TypeScript (strict)
+- Tailwind CSS
+- Prisma ORM + MySQL (Laragon)
+- NextAuth.js v5 (Credentials provider + Prisma adapter)
+- shadcn/ui for admin UI
+- zod for validation
+
+## Local Setup (Laragon + MySQL)
+
+1. Install dependencies:
+
+```bash
+npm install
+```
+
+2. Copy the environment file:
+
+```bash
+copy .env.example .env
+```
+
+3. Start Laragon and make sure MySQL is running.
+
+4. Create the database:
+
+```sql
+CREATE DATABASE ecommerce_db;
+```
+
+5. Run Prisma migrations:
+
+```bash
+npm run prisma:migrate
+```
+
+6. Generate Prisma client:
+
+```bash
+npm run prisma:generate
+```
+
+7. Start the dev server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Admin Access
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. Run migrations (this also seeds a default admin user):
 
-## Learn More
+```bash
+npm run prisma:migrate
+```
 
-To learn more about Next.js, take a look at the following resources:
+2. Sign in at `/admin/login` with:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- Username: `admin`
+- Password: `admin123`
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+3. Use the Users screen in the admin dashboard to manage accounts and roles.
 
-## Deploy on Vercel
+You can still use Prisma Studio if needed:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+npm run prisma:studio
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Scripts
+
+- `npm run dev` - start development server
+- `npm run build` - production build
+- `npm run start` - start production server
+- `npm run prisma:migrate` - run database migrations
+- `npm run prisma:seed` - run Prisma seed script
+- `npm run prisma:studio` - open Prisma Studio
+
+## Notes
+
+- Stock is only deducted when an order is confirmed from the admin dashboard.
+- Guest checkout is supported. Logged-in users can view order history and favorites.

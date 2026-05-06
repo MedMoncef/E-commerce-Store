@@ -1,0 +1,190 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+model User {
+  id             String     @id @default(cuid()) @db.VarChar(191)
+  name           String     @db.VarChar(191)
+  email          String     @unique @db.VarChar(191)
+  hashedPassword String     @db.VarChar(191)
+  role           Role       @default(USER)
+  image          String?    @db.VarChar(191)
+  emailVerified  DateTime?
+  orders         Order[]
+  favorites      Favorite[]
+  accounts       Account[]
+  sessions       Session[]
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  @@map("users")
+}
+
+model Brand {
+  id        String    @id @default(cuid()) @db.VarChar(191)
+  name      String    @unique @db.VarChar(191)
+  slug      String    @unique @db.VarChar(191)
+  products  Product[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@map("brands")
+}
+
+model Category {
+  id        String    @id @default(cuid()) @db.VarChar(191)
+  name      String    @unique @db.VarChar(191)
+  slug      String    @unique @db.VarChar(191)
+  products  Product[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@map("categories")
+}
+
+model Product {
+  id             String      @id @default(cuid()) @db.VarChar(191)
+  name           String      @db.VarChar(191)
+  slug           String      @unique @db.VarChar(191)
+  description    String      @db.Text
+  price          Float
+  compareAtPrice Float?
+  images         Json
+  sizes          Json
+  colors         Json
+  stock          Int
+  isActive       Boolean     @default(true)
+  brandId        String      @db.VarChar(191)
+  categoryId     String      @db.VarChar(191)
+  brand          Brand       @relation(fields: [brandId], references: [id])
+  category       Category    @relation(fields: [categoryId], references: [id])
+  orderItems     OrderItem[]
+  favorites      Favorite[]
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@index([brandId])
+  @@index([categoryId])
+  @@map("products")
+}
+
+model Order {
+  id              String       @id @default(cuid()) @db.VarChar(191)
+  email           String?      @db.VarChar(191)
+  status          OrderStatus  @default(PENDING)
+  total           Float
+  shippingAddress Json
+  userId          String?      @db.VarChar(191)
+  user            User?        @relation(fields: [userId], references: [id])
+  items           OrderItem[]
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([userId])
+  @@map("orders")
+}
+
+model OrderItem {
+  id        String   @id @default(cuid()) @db.VarChar(191)
+  orderId   String   @db.VarChar(191)
+  productId String   @db.VarChar(191)
+  quantity  Int
+  price     Float
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orderId])
+  @@index([productId])
+  @@map("order_items")
+}
+
+model Favorite {
+  id        String   @id @default(cuid()) @db.VarChar(191)
+  userId    String   @db.VarChar(191)
+  productId String   @db.VarChar(191)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, productId])
+  @@index([productId])
+  @@map("favorites")
+}
+
+model ContactMessage {
+  id        String   @id @default(cuid()) @db.VarChar(191)
+  name      String   @db.VarChar(191)
+  email     String   @db.VarChar(191)
+  subject   String   @db.VarChar(191)
+  message   String   @db.Text
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("contact_messages")
+}
+
+model Account {
+  id                String  @id @default(cuid()) @db.VarChar(191)
+  userId            String  @db.VarChar(191)
+  type              String  @db.VarChar(191)
+  provider          String  @db.VarChar(191)
+  providerAccountId String  @db.VarChar(191)
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String? @db.VarChar(191)
+  scope             String? @db.VarChar(191)
+  id_token          String? @db.Text
+  session_state     String? @db.VarChar(191)
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid()) @db.VarChar(191)
+  sessionToken String   @unique @db.VarChar(191)
+  userId       String   @db.VarChar(191)
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String   @db.VarChar(191)
+  token      String   @unique @db.VarChar(191)
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
