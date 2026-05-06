@@ -107,7 +107,15 @@ export function AdminCategoriesClient({
           </p>
           <h1 className="heading-font text-3xl font-semibold">Categories</h1>
         </div>
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog
+          open={open}
+          onOpenChange={(nextOpen) => {
+            setOpen(nextOpen);
+            if (nextOpen && !activeCategory) {
+              form.reset({ name: "", slug: "" });
+            }
+          }}
+        >
           <DialogTrigger asChild>
             <Button onClick={() => setActiveCategory(null)}>Add category</Button>
           </DialogTrigger>
@@ -127,11 +135,13 @@ export function AdminCategoriesClient({
               </div>
               <div className="space-y-2">
                 <Label>Slug</Label>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex items-center gap-2">
+                  <Input className="flex-1" {...form.register("slug")} />
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
+                    className="h-11"
                     onClick={() =>
                       form.setValue(
                         "slug",
@@ -141,7 +151,6 @@ export function AdminCategoriesClient({
                   >
                     Generate
                   </Button>
-                  <Input className="flex-1" {...form.register("slug")} />
                 </div>
               </div>
               {error && <p className="text-sm text-destructive">{error}</p>}

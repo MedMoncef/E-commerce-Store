@@ -103,7 +103,15 @@ export function AdminBrandsClient({ brands }: AdminBrandsClientProps) {
           </p>
           <h1 className="heading-font text-3xl font-semibold">Brands</h1>
         </div>
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog
+          open={open}
+          onOpenChange={(nextOpen) => {
+            setOpen(nextOpen);
+            if (nextOpen && !activeBrand) {
+              form.reset({ name: "", slug: "" });
+            }
+          }}
+        >
           <DialogTrigger asChild>
             <Button onClick={() => setActiveBrand(null)}>Add brand</Button>
           </DialogTrigger>
@@ -123,11 +131,13 @@ export function AdminBrandsClient({ brands }: AdminBrandsClientProps) {
               </div>
               <div className="space-y-2">
                 <Label>Slug</Label>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex items-center gap-2">
+                  <Input className="flex-1" {...form.register("slug")} />
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
+                    className="h-11"
                     onClick={() =>
                       form.setValue(
                         "slug",
@@ -137,7 +147,6 @@ export function AdminBrandsClient({ brands }: AdminBrandsClientProps) {
                   >
                     Generate
                   </Button>
-                  <Input className="flex-1" {...form.register("slug")} />
                 </div>
               </div>
               {error && <p className="text-sm text-destructive">{error}</p>}

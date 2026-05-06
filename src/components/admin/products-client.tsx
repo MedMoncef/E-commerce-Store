@@ -192,7 +192,7 @@ export function AdminProductsClient({
           <DialogTrigger asChild>
             <Button onClick={() => setActiveProduct(null)}>Add product</Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-h-[90vh] w-[calc(100%-2rem)] max-w-2xl overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
                 {activeProduct ? "Edit product" : "Add product"}
