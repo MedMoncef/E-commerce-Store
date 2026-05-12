@@ -209,11 +209,13 @@ export function AdminProductsClient({
                 </div>
                 <div className="space-y-2">
                   <Label>Slug</Label>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <Input className="flex-1" {...form.register("slug")} />
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
+                      className="h-11"
                       onClick={() =>
                         form.setValue(
                           "slug",
@@ -223,7 +225,6 @@ export function AdminProductsClient({
                     >
                       Generate
                     </Button>
-                    <Input className="flex-1" {...form.register("slug")} />
                   </div>
                 </div>
               </div>

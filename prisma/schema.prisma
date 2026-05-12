@@ -42,10 +42,13 @@ model Brand {
   id        String    @id @default(cuid()) @db.VarChar(191)
   name      String    @unique @db.VarChar(191)
   slug      String    @unique @db.VarChar(191)
+  imageId   String?   @db.VarChar(191)
+  image     Media?    @relation("BrandImage", fields: [imageId], references: [id])
   products  Product[]
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
+  @@index([imageId])
   @@map("brands")
 }
 
@@ -53,10 +56,13 @@ model Category {
   id        String    @id @default(cuid()) @db.VarChar(191)
   name      String    @unique @db.VarChar(191)
   slug      String    @unique @db.VarChar(191)
+  imageId   String?   @db.VarChar(191)
+  image     Media?    @relation("CategoryImage", fields: [imageId], references: [id])
   products  Product[]
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
+  @@index([imageId])
   @@map("categories")
 }
 
@@ -67,15 +73,17 @@ model Product {
   description    String      @db.Text
   price          Float
   compareAtPrice Float?
-  images         Json
-  sizes          Json
-  colors         Json
+  featuredImageId String?     @db.VarChar(191)
+  featuredImage  Media?       @relation("FeaturedImage", fields: [featuredImageId], references: [id])
   stock          Int
   isActive       Boolean     @default(true)
   brandId        String      @db.VarChar(191)
   categoryId     String      @db.VarChar(191)
   brand          Brand       @relation(fields: [brandId], references: [id])
   category       Category    @relation(fields: [categoryId], references: [id])
+  images         ProductImage[]
+  sizes          Size[]
+  colors         Color[]
   orderItems     OrderItem[]
   favorites      Favorite[]
   createdAt      DateTime    @default(now())
@@ -83,7 +91,63 @@ model Product {
 
   @@index([brandId])
   @@index([categoryId])
+  @@index([featuredImageId])
   @@map("products")
+}
+
+model ProductImage {
+  id        String   @id @default(cuid()) @db.VarChar(191)
+  productId String   @db.VarChar(191)
+  mediaId   String   @db.VarChar(191)
+  sortOrder Int      @default(0)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  media     Media    @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([productId])
+  @@index([mediaId])
+  @@unique([productId, mediaId])
+  @@map("product_images")
+}
+
+model Media {
+  id           String         @id @default(cuid()) @db.VarChar(191)
+  filename     String         @db.VarChar(191)
+  originalName String         @db.VarChar(191)
+  mimeType     String         @db.VarChar(191)
+  size         Int
+  url          String         @db.VarChar(191)
+  productImages ProductImage[]
+  featuredFor  Product[]      @relation("FeaturedImage")
+  brandImages  Brand[]        @relation("BrandImage")
+  categoryImages Category[]   @relation("CategoryImage")
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@map("media")
+}
+
+model Size {
+  id        String    @id @default(cuid()) @db.VarChar(191)
+  name      String    @unique @db.VarChar(191)
+  slug      String    @unique @db.VarChar(191)
+  products  Product[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@map("sizes")
+}
+
+model Color {
+  id        String    @id @default(cuid()) @db.VarChar(191)
+  name      String    @unique @db.VarChar(191)
+  slug      String    @unique @db.VarChar(191)
+  products  Product[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@map("colors")
 }
 
 model Order {

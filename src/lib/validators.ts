@@ -23,11 +23,13 @@ export const adminUserUpdateSchema = z.object({
 export const brandSchema = z.object({
   name: z.string().min(2),
   slug: z.string().min(2),
+  imageId: z.string().optional().nullable(),
 });
 
 export const categorySchema = z.object({
   name: z.string().min(2),
   slug: z.string().min(2),
+  imageId: z.string().optional().nullable(),
 });
 
 export const productSchema = z.object({
@@ -36,13 +38,24 @@ export const productSchema = z.object({
   description: z.string().min(10),
   price: z.number().nonnegative(),
   compareAtPrice: z.number().nonnegative().optional(),
-  images: z.array(z.string().url()).min(1),
-  sizes: z.array(z.string()).min(1),
-  colors: z.array(z.string()).min(1),
+  featuredImageId: z.string().optional().nullable(),
+  galleryImageIds: z.array(z.string()).optional(),
+  sizeIds: z.array(z.string()).optional(),
+  colorIds: z.array(z.string()).optional(),
   stock: z.number().int().nonnegative(),
   isActive: z.boolean().optional(),
   brandId: z.string().min(1),
   categoryId: z.string().min(1),
+});
+
+export const sizeSchema = z.object({
+  name: z.string().min(2),
+  slug: z.string().min(2),
+});
+
+export const colorSchema = z.object({
+  name: z.string().min(2),
+  slug: z.string().min(2),
 });
 
 export const orderCreateSchema = z.object({
