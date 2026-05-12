@@ -14,11 +14,33 @@ export async function GET() {
       user: { select: { id: true, name: true, email: true, role: true } },
       items: {
         include: {
-          product: { select: { id: true, name: true, slug: true, images: true } },
+          product: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              featuredImage: { select: { url: true } },
+              images: {
+                orderBy: { sortOrder: "asc" },
+                select: { media: { select: { url: true } } },
+              },
+            },
+          },
         },
       },
     },
   });
 
-  return jsonSuccess(orders);
+  const formatted = orders.map((order) => ({
+    ...order,
+    items: order.items.map((item) => ({
+      ...item,
+      product: {
+        ...item.product,
+        images: item.product.images.map((image) => image.media),
+      },
+    })),
+  }));
+
+  return jsonSuccess(formatted);
 }

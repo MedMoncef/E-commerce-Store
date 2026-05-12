@@ -8,7 +8,6 @@ import { FavoriteButton } from "@/components/store/favorite-button";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/format";
 import { getProductBySlug } from "@/lib/store";
-import { toStringArray } from "@/lib/data-utils";
 import { buildMetadata } from "@/lib/metadata";
 
 export async function generateMetadata({
@@ -44,11 +43,19 @@ export default async function ProductDetailPage({
     notFound();
   }
 
-  const images = toStringArray(product.images);
-  const sizes = toStringArray(product.sizes);
-  const colors = toStringArray(product.colors);
+  const galleryImages = product.images.map((image) => image.url);
+  const sizes = product.sizes.map((size) => size.name);
+  const colors = product.colors.map((color) => color.name);
+  const featuredImage = product.featuredImage?.url ?? null;
 
-  const mainImage = images[0] ?? "https://placehold.co/900x1200/png?text=Product";
+  const mainImage =
+    featuredImage ||
+    galleryImages[0] ||
+    "https://placehold.co/900x1200/png?text=Product";
+  const cartImages = [
+    mainImage,
+    ...galleryImages.filter((image) => image !== mainImage),
+  ];
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-12">
@@ -79,9 +86,9 @@ export default async function ProductDetailPage({
               className="object-cover"
             />
           </div>
-          {images.length > 1 && (
+          {galleryImages.length > 0 && (
             <div className="grid grid-cols-3 gap-3">
-              {images.slice(0, 3).map((image) => (
+              {galleryImages.slice(0, 3).map((image) => (
                 <div
                   key={image}
                   className="relative aspect-square overflow-hidden rounded-2xl border border-border"
@@ -130,7 +137,7 @@ export default async function ProductDetailPage({
               name: product.name,
               slug: product.slug,
               price: product.price,
-              images: images.length ? images : [mainImage],
+              images: cartImages,
               sizes,
               colors,
               stock: product.stock,

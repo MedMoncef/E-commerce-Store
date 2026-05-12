@@ -13,6 +13,7 @@ export const dynamic = "force-dynamic";
 export default async function AdminCategoriesPage() {
   const categories = await prisma.category.findMany({
     orderBy: { name: "asc" },
+    include: { image: { select: { id: true, url: true, originalName: true } } },
   });
   return <AdminCategoriesClient categories={categories} />;
 }

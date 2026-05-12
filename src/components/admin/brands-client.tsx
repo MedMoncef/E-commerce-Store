@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -26,16 +27,24 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { slugify } from "@/lib/slug";
+import { MediaPicker } from "@/components/admin/media-picker";
+import type { MediaItem } from "@/types/media";
 
 const formSchema = z.object({
   name: z.string().min(2),
   slug: z.string().min(2),
+  imageId: z.string().optional().nullable(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
 
 type AdminBrandsClientProps = {
-  brands: Array<{ id: string; name: string; slug: string }>;
+  brands: Array<{
+    id: string;
+    name: string;
+    slug: string;
+    image: MediaItem | null;
+  }>;
 };
 
 export function AdminBrandsClient({ brands }: AdminBrandsClientProps) {
@@ -44,17 +53,24 @@ export function AdminBrandsClient({ brands }: AdminBrandsClientProps) {
   const [activeBrand, setActiveBrand] = useState<AdminBrandsClientProps["brands"][number] | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedImage, setSelectedImage] = useState<MediaItem | null>(null);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: { name: "", slug: "" },
+    defaultValues: { name: "", slug: "", imageId: null },
   });
 
   useEffect(() => {
     if (activeBrand) {
-      form.reset({ name: activeBrand.name, slug: activeBrand.slug });
+      form.reset({
+        name: activeBrand.name,
+        slug: activeBrand.slug,
+        imageId: activeBrand.image?.id ?? null,
+      });
+      setSelectedImage(activeBrand.image ?? null);
     } else {
-      form.reset({ name: "", slug: "" });
+      form.reset({ name: "", slug: "", imageId: null });
+      setSelectedImage(null);
     }
   }, [activeBrand, form]);
 
@@ -108,7 +124,8 @@ export function AdminBrandsClient({ brands }: AdminBrandsClientProps) {
           onOpenChange={(nextOpen) => {
             setOpen(nextOpen);
             if (nextOpen && !activeBrand) {
-              form.reset({ name: "", slug: "" });
+              form.reset({ name: "", slug: "", imageId: null });
+              setSelectedImage(null);
             }
           }}
         >
@@ -148,6 +165,55 @@ export function AdminBrandsClient({ brands }: AdminBrandsClientProps) {
                     Generate
                   </Button>
                 </div>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label>Image</Label>
+                  <MediaPicker
+                    title="Select brand image"
+                    selectedIds={selectedImage ? [selectedImage.id] : []}
+                    onSelect={(items) => {
+                      const image = items[0] ?? null;
+                      setSelectedImage(image);
+                      form.setValue("imageId", image?.id ?? null);
+                    }}
+                    trigger={
+                      <Button type="button" variant="outline" size="sm">
+                        {selectedImage ? "Change" : "Choose"}
+                      </Button>
+                    }
+                  />
+                </div>
+                {selectedImage ? (
+                  <div className="flex items-center gap-3 rounded-xl border border-border bg-muted/30 p-3">
+                    <div className="relative h-16 w-16 overflow-hidden rounded-lg">
+                      <Image
+                        src={selectedImage.url}
+                        alt={selectedImage.originalName}
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium line-clamp-1">
+                        {selectedImage.originalName}
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedImage(null);
+                        form.setValue("imageId", null);
+                      }}
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">No image selected.</p>
+                )}
               </div>
               {error && <p className="text-sm text-destructive">{error}</p>}
               <DialogFooter>

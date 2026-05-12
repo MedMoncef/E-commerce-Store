@@ -17,7 +17,18 @@ export default async function AdminOrdersPage() {
       user: { select: { id: true, name: true, email: true } },
       items: {
         include: {
-          product: { select: { id: true, name: true, slug: true, images: true } },
+          product: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              featuredImage: { select: { url: true } },
+              images: {
+                orderBy: { sortOrder: "asc" },
+                select: { media: { select: { url: true } } },
+              },
+            },
+          },
         },
       },
     },
@@ -36,7 +47,8 @@ export default async function AdminOrdersPage() {
       product: {
         id: item.product.id,
         name: item.product.name,
-        images: item.product.images,
+        featuredImage: item.product.featuredImage,
+        images: item.product.images.map((image) => image.media),
       },
     })),
   }));

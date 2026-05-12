@@ -26,11 +26,35 @@ export async function PUT(
     return jsonError("Product not found.", 404);
   }
 
+  const {
+    galleryImageIds = [],
+    sizeIds = [],
+    colorIds = [],
+    featuredImageId,
+  } = parsed.data;
+
   const product = await prisma.product.update({
     where: { id },
     data: {
-      ...parsed.data,
+      name: parsed.data.name,
+      slug: parsed.data.slug,
+      description: parsed.data.description,
+      price: parsed.data.price,
+      compareAtPrice: parsed.data.compareAtPrice ?? null,
+      stock: parsed.data.stock,
+      brandId: parsed.data.brandId,
+      categoryId: parsed.data.categoryId,
       isActive: parsed.data.isActive ?? true,
+      featuredImageId: featuredImageId ?? null,
+      sizes: { set: sizeIds.map((item) => ({ id: item })) },
+      colors: { set: colorIds.map((item) => ({ id: item })) },
+      images: {
+        deleteMany: {},
+        create: galleryImageIds.map((mediaId, index) => ({
+          mediaId,
+          sortOrder: index,
+        })),
+      },
     },
   });
 

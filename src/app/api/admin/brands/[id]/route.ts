@@ -28,7 +28,11 @@ export async function PUT(
 
   const brand = await prisma.brand.update({
     where: { id },
-    data: parsed.data,
+    data: {
+      name: parsed.data.name,
+      slug: parsed.data.slug,
+      imageId: parsed.data.imageId ?? null,
+    },
   });
 
   return jsonSuccess(brand);

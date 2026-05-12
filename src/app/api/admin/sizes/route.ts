@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { jsonError, jsonSuccess, requireAdmin } from "@/lib/api-helpers";
-import { brandSchema } from "@/lib/validators";
+import { sizeSchema } from "@/lib/validators";
 
 export async function GET() {
   const { response } = await requireAdmin();
@@ -9,11 +9,11 @@ export async function GET() {
     return response;
   }
 
-  const brands = await prisma.brand.findMany({
+  const sizes = await prisma.size.findMany({
     orderBy: { name: "asc" },
   });
 
-  return jsonSuccess(brands);
+  return jsonSuccess(sizes);
 }
 
 export async function POST(request: Request) {
@@ -24,19 +24,15 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json().catch(() => null);
-  const parsed = brandSchema.safeParse(body);
+  const parsed = sizeSchema.safeParse(body);
 
   if (!parsed.success) {
-    return jsonError("Invalid brand payload.");
+    return jsonError("Invalid size payload.");
   }
 
-  const brand = await prisma.brand.create({
-    data: {
-      name: parsed.data.name,
-      slug: parsed.data.slug,
-      imageId: parsed.data.imageId ?? null,
-    },
+  const size = await prisma.size.create({
+    data: parsed.data,
   });
 
-  return jsonSuccess(brand, { status: 201 });
+  return jsonSuccess(size, { status: 201 });
 }

@@ -31,7 +31,11 @@ export async function POST(request: Request) {
   }
 
   const category = await prisma.category.create({
-    data: parsed.data,
+    data: {
+      name: parsed.data.name,
+      slug: parsed.data.slug,
+      imageId: parsed.data.imageId ?? null,
+    },
   });
 
   return jsonSuccess(category, { status: 201 });

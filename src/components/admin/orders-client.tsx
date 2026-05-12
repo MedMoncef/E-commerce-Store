@@ -20,7 +20,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatCurrency } from "@/lib/format";
-import { toStringArray } from "@/lib/data-utils";
 import Image from "next/image";
 
 const STATUS_ACTIONS: Record<
@@ -44,7 +43,12 @@ type OrderItem = {
   id: string;
   quantity: number;
   price: number;
-  product: { id: string; name: string; images: unknown };
+  product: {
+    id: string;
+    name: string;
+    featuredImage?: { url: string } | null;
+    images: Array<{ url: string }>;
+  };
 };
 
 type Order = {
@@ -137,9 +141,9 @@ export function AdminOrdersClient({ orders }: AdminOrdersClientProps) {
                         </DialogHeader>
                         <div className="space-y-3">
                           {order.items.map((item) => {
-                            const images = toStringArray(item.product.images);
                             const image =
-                              images[0] ||
+                              item.product.featuredImage?.url ||
+                              item.product.images[0]?.url ||
                               "https://placehold.co/600x800/png?text=Product";
                             return (
                               <div key={item.id} className="flex items-center gap-3">

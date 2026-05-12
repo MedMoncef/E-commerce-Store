@@ -69,6 +69,13 @@ npm run prisma:migrate
 
 3. Use the Users screen in the admin dashboard to manage accounts and roles.
 
+## Media Uploads
+
+- Images are stored in `public/uploads` by default.
+- Configure the paths with:
+	- `MEDIA_UPLOAD_DIR`
+	- `NEXT_PUBLIC_MEDIA_BASE_URL`
+
 You can still use Prisma Studio if needed:
 
 ```bash
@@ -88,3 +95,4 @@ npm run prisma:studio
 
 - Stock is only deducted when an order is confirmed from the admin dashboard.
 - Guest checkout is supported. Logged-in users can view order history and favorites.
+- Manage sizes, colors, and the media library in the admin dashboard.

@@ -15,16 +15,31 @@ export async function GET() {
     where: { userId: session.user.id },
     include: {
       product: {
-        include: {
-          brand: { select: { id: true, name: true, slug: true } },
-          category: { select: { id: true, name: true, slug: true } },
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          price: true,
+          featuredImage: { select: { url: true } },
+          images: {
+            orderBy: { sortOrder: "asc" },
+            select: { media: { select: { url: true } } },
+          },
         },
       },
     },
     orderBy: { createdAt: "desc" },
   });
 
-  return jsonSuccess(favorites);
+  const formatted = favorites.map((favorite) => ({
+    ...favorite,
+    product: {
+      ...favorite.product,
+      images: favorite.product.images.map((image) => image.media),
+    },
+  }));
+
+  return jsonSuccess(formatted);
 }
 
 export async function POST(request: Request) {

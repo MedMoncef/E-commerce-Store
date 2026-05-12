@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
@@ -28,8 +29,9 @@ import {
 } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { formatCurrency } from "@/lib/format";
-import { toStringArray } from "@/lib/data-utils";
 import { slugify } from "@/lib/slug";
+import { MediaPicker } from "@/components/admin/media-picker";
+import type { MediaItem } from "@/types/media";
 
 const formSchema = z.object({
   name: z.string().min(2),
@@ -40,9 +42,10 @@ const formSchema = z.object({
     (value) => (value === "" ? undefined : Number(value)),
     z.number().nonnegative().optional()
   ),
-  images: z.string().min(2),
-  sizes: z.string().min(1),
-  colors: z.string().min(1),
+  featuredImageId: z.string().optional().nullable(),
+  galleryImageIds: z.array(z.string()).optional(),
+  sizeIds: z.array(z.string()).optional(),
+  colorIds: z.array(z.string()).optional(),
   stock: z.coerce.number().int().nonnegative(),
   brandId: z.string().min(1),
   categoryId: z.string().min(1),
@@ -50,6 +53,16 @@ const formSchema = z.object({
 });
 
 type FormValues = z.infer<typeof formSchema>;
+
+type CatalogOption = { id: string; name: string; slug: string };
+
+function mergeOptions(base: CatalogOption[], created: CatalogOption[]) {
+  const map = new Map(base.map((item) => [item.id, item]));
+  for (const item of created) {
+    map.set(item.id, item);
+  }
+  return Array.from(map.values());
+}
 
 type AdminProductsClientProps = {
   products: Array<{
@@ -61,26 +74,66 @@ type AdminProductsClientProps = {
     description: string;
     stock: number;
     isActive: boolean;
-    images: unknown;
-    sizes: unknown;
-    colors: unknown;
+    featuredImage: MediaItem | null;
+    images: MediaItem[];
+    sizes: CatalogOption[];
+    colors: CatalogOption[];
     brand: { id: string; name: string } | null;
     category: { id: string; name: string } | null;
   }>;
-  brands: Array<{ id: string; name: string }>;
-  categories: Array<{ id: string; name: string }>;
+  brands: CatalogOption[];
+  categories: CatalogOption[];
+  sizes: CatalogOption[];
+  colors: CatalogOption[];
 };
 
 export function AdminProductsClient({
   products,
   brands,
   categories,
+  sizes,
+  colors,
 }: AdminProductsClientProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [activeProduct, setActiveProduct] = useState<AdminProductsClientProps["products"][number] | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [featuredImage, setFeaturedImage] = useState<MediaItem | null>(null);
+  const [galleryImages, setGalleryImages] = useState<MediaItem[]>([]);
+  const [createdBrands, setCreatedBrands] = useState<CatalogOption[]>([]);
+  const [createdCategories, setCreatedCategories] = useState<CatalogOption[]>([]);
+  const [createdSizes, setCreatedSizes] = useState<CatalogOption[]>([]);
+  const [createdColors, setCreatedColors] = useState<CatalogOption[]>([]);
+  const [showBrandForm, setShowBrandForm] = useState(false);
+  const [showCategoryForm, setShowCategoryForm] = useState(false);
+  const [showSizeForm, setShowSizeForm] = useState(false);
+  const [showColorForm, setShowColorForm] = useState(false);
+  const [newBrandName, setNewBrandName] = useState("");
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [newSizeName, setNewSizeName] = useState("");
+  const [newColorName, setNewColorName] = useState("");
+  const [creatingBrand, setCreatingBrand] = useState(false);
+  const [creatingCategory, setCreatingCategory] = useState(false);
+  const [creatingSize, setCreatingSize] = useState(false);
+  const [creatingColor, setCreatingColor] = useState(false);
+
+  const brandOptions = useMemo(
+    () => mergeOptions(brands, createdBrands),
+    [brands, createdBrands]
+  );
+  const categoryOptions = useMemo(
+    () => mergeOptions(categories, createdCategories),
+    [categories, createdCategories]
+  );
+  const sizeOptions = useMemo(
+    () => mergeOptions(sizes, createdSizes),
+    [sizes, createdSizes]
+  );
+  const colorOptions = useMemo(
+    () => mergeOptions(colors, createdColors),
+    [colors, createdColors]
+  );
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -90,9 +143,10 @@ export function AdminProductsClient({
       description: "",
       price: 0,
       compareAtPrice: undefined,
-      images: "",
-      sizes: "",
-      colors: "",
+      featuredImageId: null,
+      galleryImageIds: [],
+      sizeIds: [],
+      colorIds: [],
       stock: 0,
       brandId: "",
       categoryId: "",
@@ -108,9 +162,10 @@ export function AdminProductsClient({
         description: activeProduct.description,
         price: activeProduct.price,
         compareAtPrice: activeProduct.compareAtPrice ?? undefined,
-        images: toStringArray(activeProduct.images).join(", "),
-        sizes: toStringArray(activeProduct.sizes).join(", "),
-        colors: toStringArray(activeProduct.colors).join(", "),
+        featuredImageId: activeProduct.featuredImage?.id ?? null,
+        galleryImageIds: activeProduct.images.map((image) => image.id),
+        sizeIds: activeProduct.sizes.map((size) => size.id),
+        colorIds: activeProduct.colors.map((color) => color.id),
         stock: activeProduct.stock,
         brandId: activeProduct.brand?.id ?? "",
         categoryId: activeProduct.category?.id ?? "",
@@ -123,9 +178,10 @@ export function AdminProductsClient({
         description: "",
         price: 0,
         compareAtPrice: undefined,
-        images: "",
-        sizes: "",
-        colors: "",
+        featuredImageId: null,
+        galleryImageIds: [],
+        sizeIds: [],
+        colorIds: [],
         stock: 0,
         brandId: "",
         categoryId: "",
@@ -141,9 +197,10 @@ export function AdminProductsClient({
     const payload = {
       ...values,
       compareAtPrice: values.compareAtPrice,
-      images: values.images.split(",").map((item) => item.trim()).filter(Boolean),
-      sizes: values.sizes.split(",").map((item) => item.trim()).filter(Boolean),
-      colors: values.colors.split(",").map((item) => item.trim()).filter(Boolean),
+      featuredImageId: values.featuredImageId ?? null,
+      galleryImageIds: values.galleryImageIds ?? [],
+      sizeIds: values.sizeIds ?? [],
+      colorIds: values.colorIds ?? [],
       isActive: values.isActive ?? true,
     };
 
@@ -166,6 +223,8 @@ export function AdminProductsClient({
 
     setOpen(false);
     setActiveProduct(null);
+    setFeaturedImage(null);
+    setGalleryImages([]);
     setSubmitting(false);
     router.refresh();
   };
@@ -179,6 +238,157 @@ export function AdminProductsClient({
     router.refresh();
   };
 
+  const handleRemoveGalleryImage = (id: string) => {
+    const nextImages = galleryImages.filter((image) => image.id !== id);
+    setGalleryImages(nextImages);
+    form.setValue(
+      "galleryImageIds",
+      nextImages.map((image) => image.id)
+    );
+  };
+
+  const createBrand = async () => {
+    const name = newBrandName.trim();
+    if (!name) {
+      setError("Brand name is required.");
+      return;
+    }
+
+    setCreatingBrand(true);
+    setError(null);
+
+    const response = await fetch("/api/admin/brands", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, slug: slugify(name) }),
+    });
+
+    const result = (await response.json()) as {
+      success: boolean;
+      data?: CatalogOption;
+      error?: string;
+    };
+
+    if (!response.ok || !result.success || !result.data) {
+      setError(result.error || "Unable to create brand.");
+    } else {
+      setCreatedBrands((prev) => [...prev, result.data!]);
+      form.setValue("brandId", result.data!.id);
+      setNewBrandName("");
+      setShowBrandForm(false);
+    }
+
+    setCreatingBrand(false);
+  };
+
+  const createCategory = async () => {
+    const name = newCategoryName.trim();
+    if (!name) {
+      setError("Category name is required.");
+      return;
+    }
+
+    setCreatingCategory(true);
+    setError(null);
+
+    const response = await fetch("/api/admin/categories", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, slug: slugify(name) }),
+    });
+
+    const result = (await response.json()) as {
+      success: boolean;
+      data?: CatalogOption;
+      error?: string;
+    };
+
+    if (!response.ok || !result.success || !result.data) {
+      setError(result.error || "Unable to create category.");
+    } else {
+      setCreatedCategories((prev) => [...prev, result.data!]);
+      form.setValue("categoryId", result.data!.id);
+      setNewCategoryName("");
+      setShowCategoryForm(false);
+    }
+
+    setCreatingCategory(false);
+  };
+
+  const createSize = async () => {
+    const name = newSizeName.trim();
+    if (!name) {
+      setError("Size name is required.");
+      return;
+    }
+
+    setCreatingSize(true);
+    setError(null);
+
+    const response = await fetch("/api/admin/sizes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, slug: slugify(name) }),
+    });
+
+    const result = (await response.json()) as {
+      success: boolean;
+      data?: CatalogOption;
+      error?: string;
+    };
+
+    if (!response.ok || !result.success || !result.data) {
+      setError(result.error || "Unable to create size.");
+    } else {
+      setCreatedSizes((prev) => [...prev, result.data!]);
+      form.setValue("sizeIds", [
+        ...(form.getValues("sizeIds") ?? []),
+        result.data!.id,
+      ]);
+      setNewSizeName("");
+      setShowSizeForm(false);
+    }
+
+    setCreatingSize(false);
+  };
+
+  const createColor = async () => {
+    const name = newColorName.trim();
+    if (!name) {
+      setError("Color name is required.");
+      return;
+    }
+
+    setCreatingColor(true);
+    setError(null);
+
+    const response = await fetch("/api/admin/colors", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, slug: slugify(name) }),
+    });
+
+    const result = (await response.json()) as {
+      success: boolean;
+      data?: CatalogOption;
+      error?: string;
+    };
+
+    if (!response.ok || !result.success || !result.data) {
+      setError(result.error || "Unable to create color.");
+    } else {
+      setCreatedColors((prev) => [...prev, result.data!]);
+      form.setValue("colorIds", [
+        ...(form.getValues("colorIds") ?? []),
+        result.data!.id,
+      ]);
+      setNewColorName("");
+      setShowColorForm(false);
+    }
+
+    setCreatingColor(false);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -188,9 +398,37 @@ export function AdminProductsClient({
           </p>
           <h1 className="heading-font text-3xl font-semibold">Products</h1>
         </div>
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog
+          open={open}
+          onOpenChange={(nextOpen) => {
+            setOpen(nextOpen);
+            if (!nextOpen) {
+              setActiveProduct(null);
+              setError(null);
+              setFeaturedImage(null);
+              setGalleryImages([]);
+              setShowBrandForm(false);
+              setShowCategoryForm(false);
+              setShowSizeForm(false);
+              setShowColorForm(false);
+              setNewBrandName("");
+              setNewCategoryName("");
+              setNewSizeName("");
+              setNewColorName("");
+            }
+          }}
+        >
           <DialogTrigger asChild>
-            <Button onClick={() => setActiveProduct(null)}>Add product</Button>
+            <Button
+              onClick={() => {
+                setActiveProduct(null);
+                setFeaturedImage(null);
+                setGalleryImages([]);
+                setError(null);
+              }}
+            >
+              Add product
+            </Button>
           </DialogTrigger>
           <DialogContent className="max-h-[90vh] w-[calc(100%-2rem)] max-w-2xl overflow-y-auto">
             <DialogHeader>
@@ -274,46 +512,321 @@ export function AdminProductsClient({
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label>Brand</Label>
+                  <div className="flex items-center justify-between">
+                    <Label>Brand</Label>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowBrandForm((prev) => !prev)}
+                    >
+                      {showBrandForm ? "Close" : "+ Add"}
+                    </Button>
+                  </div>
                   <select
                     className="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm"
                     {...form.register("brandId")}
                   >
                     <option value="">Select brand</option>
-                    {brands.map((brand) => (
+                    {brandOptions.map((brand) => (
                       <option key={brand.id} value={brand.id}>
                         {brand.name}
                       </option>
                     ))}
                   </select>
+                  {showBrandForm && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <Input
+                        value={newBrandName}
+                        onChange={(event) => setNewBrandName(event.target.value)}
+                        placeholder="New brand name"
+                      />
+                      <Button
+                        type="button"
+                        onClick={createBrand}
+                        disabled={creatingBrand}
+                      >
+                        {creatingBrand ? "Adding..." : "Add brand"}
+                      </Button>
+                    </div>
+                  )}
                 </div>
                 <div className="space-y-2">
-                  <Label>Category</Label>
+                  <div className="flex items-center justify-between">
+                    <Label>Category</Label>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowCategoryForm((prev) => !prev)}
+                    >
+                      {showCategoryForm ? "Close" : "+ Add"}
+                    </Button>
+                  </div>
                   <select
                     className="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm"
                     {...form.register("categoryId")}
                   >
                     <option value="">Select category</option>
-                    {categories.map((category) => (
+                    {categoryOptions.map((category) => (
                       <option key={category.id} value={category.id}>
                         {category.name}
                       </option>
                     ))}
                   </select>
+                  {showCategoryForm && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <Input
+                        value={newCategoryName}
+                        onChange={(event) => setNewCategoryName(event.target.value)}
+                        placeholder="New category name"
+                      />
+                      <Button
+                        type="button"
+                        onClick={createCategory}
+                        disabled={creatingCategory}
+                      >
+                        {creatingCategory ? "Adding..." : "Add category"}
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="space-y-2">
-                <Label>Images (comma separated URLs)</Label>
-                <Input {...form.register("images")} />
+                <div className="flex items-center justify-between">
+                  <Label>Featured image</Label>
+                  <MediaPicker
+                    title="Select featured image"
+                    selectedIds={featuredImage ? [featuredImage.id] : []}
+                    onSelect={(items) => {
+                      const image = items[0] ?? null;
+                      setFeaturedImage(image);
+                      form.setValue("featuredImageId", image?.id ?? null);
+                    }}
+                    trigger={
+                      <Button type="button" variant="outline" size="sm">
+                        {featuredImage ? "Change" : "Choose"}
+                      </Button>
+                    }
+                  />
+                </div>
+                {featuredImage ? (
+                  <div className="flex items-center gap-3 rounded-xl border border-border bg-muted/30 p-3">
+                    <div className="relative h-16 w-16 overflow-hidden rounded-lg">
+                      <Image
+                        src={featuredImage.url}
+                        alt={featuredImage.originalName}
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium line-clamp-1">
+                        {featuredImage.originalName}
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setFeaturedImage(null);
+                        form.setValue("featuredImageId", null);
+                      }}
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">No image selected.</p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label>Gallery images</Label>
+                  <MediaPicker
+                    title="Select gallery images"
+                    multiple
+                    selectedIds={galleryImages.map((image) => image.id)}
+                    onSelect={(items) => {
+                      setGalleryImages(items);
+                      form.setValue(
+                        "galleryImageIds",
+                        items.map((image) => image.id)
+                      );
+                    }}
+                    trigger={
+                      <Button type="button" variant="outline" size="sm">
+                        {galleryImages.length > 0 ? "Edit" : "Choose"}
+                      </Button>
+                    }
+                  />
+                </div>
+                {galleryImages.length > 0 ? (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {galleryImages.map((image) => (
+                      <div
+                        key={image.id}
+                        className="flex items-center gap-3 rounded-xl border border-border bg-muted/30 p-3"
+                      >
+                        <div className="relative h-14 w-14 overflow-hidden rounded-lg">
+                          <Image
+                            src={image.url}
+                            alt={image.originalName}
+                            fill
+                            className="object-cover"
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium line-clamp-1">
+                            {image.originalName}
+                          </p>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRemoveGalleryImage(image.id)}
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    No gallery images selected.
+                  </p>
+                )}
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label>Sizes (comma separated)</Label>
-                  <Input {...form.register("sizes")} />
+                  <div className="flex items-center justify-between">
+                    <Label>Sizes</Label>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowSizeForm((prev) => !prev)}
+                    >
+                      {showSizeForm ? "Close" : "+ Add"}
+                    </Button>
+                  </div>
+                  <Controller
+                    control={form.control}
+                    name="sizeIds"
+                    render={({ field }) => {
+                      const values = field.value ?? [];
+                      return (
+                        <div className="flex flex-wrap gap-3 rounded-xl border border-border bg-muted/20 p-3">
+                          {sizeOptions.length === 0 ? (
+                            <span className="text-xs text-muted-foreground">
+                              No sizes yet.
+                            </span>
+                          ) : (
+                            sizeOptions.map((size) => (
+                              <label
+                                key={size.id}
+                                className="flex items-center gap-2 text-sm"
+                              >
+                                <Checkbox
+                                  checked={values.includes(size.id)}
+                                  onCheckedChange={(checked) => {
+                                    const next =
+                                      checked === true
+                                        ? [...values, size.id]
+                                        : values.filter((item) => item !== size.id);
+                                    field.onChange(next);
+                                  }}
+                                />
+                                {size.name}
+                              </label>
+                            ))
+                          )}
+                        </div>
+                      );
+                    }}
+                  />
+                  {showSizeForm && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <Input
+                        value={newSizeName}
+                        onChange={(event) => setNewSizeName(event.target.value)}
+                        placeholder="New size name"
+                      />
+                      <Button
+                        type="button"
+                        onClick={createSize}
+                        disabled={creatingSize}
+                      >
+                        {creatingSize ? "Adding..." : "Add size"}
+                      </Button>
+                    </div>
+                  )}
                 </div>
                 <div className="space-y-2">
-                  <Label>Colors (comma separated)</Label>
-                  <Input {...form.register("colors")} />
+                  <div className="flex items-center justify-between">
+                    <Label>Colors</Label>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowColorForm((prev) => !prev)}
+                    >
+                      {showColorForm ? "Close" : "+ Add"}
+                    </Button>
+                  </div>
+                  <Controller
+                    control={form.control}
+                    name="colorIds"
+                    render={({ field }) => {
+                      const values = field.value ?? [];
+                      return (
+                        <div className="flex flex-wrap gap-3 rounded-xl border border-border bg-muted/20 p-3">
+                          {colorOptions.length === 0 ? (
+                            <span className="text-xs text-muted-foreground">
+                              No colors yet.
+                            </span>
+                          ) : (
+                            colorOptions.map((color) => (
+                              <label
+                                key={color.id}
+                                className="flex items-center gap-2 text-sm"
+                              >
+                                <Checkbox
+                                  checked={values.includes(color.id)}
+                                  onCheckedChange={(checked) => {
+                                    const next =
+                                      checked === true
+                                        ? [...values, color.id]
+                                        : values.filter((item) => item !== color.id);
+                                    field.onChange(next);
+                                  }}
+                                />
+                                {color.name}
+                              </label>
+                            ))
+                          )}
+                        </div>
+                      );
+                    }}
+                  />
+                  {showColorForm && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <Input
+                        value={newColorName}
+                        onChange={(event) => setNewColorName(event.target.value)}
+                        placeholder="New color name"
+                      />
+                      <Button
+                        type="button"
+                        onClick={createColor}
+                        disabled={creatingColor}
+                      >
+                        {creatingColor ? "Adding..." : "Add color"}
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -360,6 +873,9 @@ export function AdminProductsClient({
                       size="sm"
                       onClick={() => {
                         setActiveProduct(product);
+                        setFeaturedImage(product.featuredImage);
+                        setGalleryImages(product.images);
+                        setError(null);
                         setOpen(true);
                       }}
                     >

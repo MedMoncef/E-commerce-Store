@@ -11,6 +11,9 @@ export const metadata = buildMetadata({
 export const dynamic = "force-dynamic";
 
 export default async function AdminBrandsPage() {
-  const brands = await prisma.brand.findMany({ orderBy: { name: "asc" } });
+  const brands = await prisma.brand.findMany({
+    orderBy: { name: "asc" },
+    include: { image: { select: { id: true, url: true, originalName: true } } },
+  });
   return <AdminBrandsClient brands={brands} />;
 }

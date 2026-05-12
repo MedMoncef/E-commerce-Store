@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -26,16 +27,24 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { slugify } from "@/lib/slug";
+import { MediaPicker } from "@/components/admin/media-picker";
+import type { MediaItem } from "@/types/media";
 
 const formSchema = z.object({
   name: z.string().min(2),
   slug: z.string().min(2),
+  imageId: z.string().optional().nullable(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
 
 type AdminCategoriesClientProps = {
-  categories: Array<{ id: string; name: string; slug: string }>;
+  categories: Array<{
+    id: string;
+    name: string;
+    slug: string;
+    image: MediaItem | null;
+  }>;
 };
 
 export function AdminCategoriesClient({
@@ -46,17 +55,24 @@ export function AdminCategoriesClient({
   const [activeCategory, setActiveCategory] = useState<AdminCategoriesClientProps["categories"][number] | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedImage, setSelectedImage] = useState<MediaItem | null>(null);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: { name: "", slug: "" },
+    defaultValues: { name: "", slug: "", imageId: null },
   });
 
   useEffect(() => {
     if (activeCategory) {
-      form.reset({ name: activeCategory.name, slug: activeCategory.slug });
+      form.reset({
+        name: activeCategory.name,
+        slug: activeCategory.slug,
+        imageId: activeCategory.image?.id ?? null,
+      });
+      setSelectedImage(activeCategory.image ?? null);
     } else {
-      form.reset({ name: "", slug: "" });
+      form.reset({ name: "", slug: "", imageId: null });
+      setSelectedImage(null);
     }
   }, [activeCategory, form]);
 
@@ -112,7 +128,8 @@ export function AdminCategoriesClient({
           onOpenChange={(nextOpen) => {
             setOpen(nextOpen);
             if (nextOpen && !activeCategory) {
-              form.reset({ name: "", slug: "" });
+              form.reset({ name: "", slug: "", imageId: null });
+              setSelectedImage(null);
             }
           }}
         >
@@ -152,6 +169,55 @@ export function AdminCategoriesClient({
                     Generate
                   </Button>
                 </div>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label>Image</Label>
+                  <MediaPicker
+                    title="Select category image"
+                    selectedIds={selectedImage ? [selectedImage.id] : []}
+                    onSelect={(items) => {
+                      const image = items[0] ?? null;
+                      setSelectedImage(image);
+                      form.setValue("imageId", image?.id ?? null);
+                    }}
+                    trigger={
+                      <Button type="button" variant="outline" size="sm">
+                        {selectedImage ? "Change" : "Choose"}
+                      </Button>
+                    }
+                  />
+                </div>
+                {selectedImage ? (
+                  <div className="flex items-center gap-3 rounded-xl border border-border bg-muted/30 p-3">
+                    <div className="relative h-16 w-16 overflow-hidden rounded-lg">
+                      <Image
+                        src={selectedImage.url}
+                        alt={selectedImage.originalName}
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium line-clamp-1">
+                        {selectedImage.originalName}
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedImage(null);
+                        form.setValue("imageId", null);
+                      }}
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">No image selected.</p>
+                )}
               </div>
               {error && <p className="text-sm text-destructive">{error}</p>}
               <DialogFooter>

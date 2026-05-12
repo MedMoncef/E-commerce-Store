@@ -3,7 +3,6 @@ import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/format";
-import { toStringArray } from "@/lib/data-utils";
 
 type ProductCardProps = {
   product: {
@@ -12,14 +11,17 @@ type ProductCardProps = {
     slug: string;
     price: number;
     compareAtPrice?: number | null;
-    images: unknown;
+    featuredImage?: { url: string } | null;
+    images: Array<{ url: string }>;
     brand?: { name: string; slug: string } | null;
   };
 };
 
 export function ProductCard({ product }: ProductCardProps) {
-  const images = toStringArray(product.images);
-  const image = images[0] ?? "https://placehold.co/600x800/png?text=Product";
+  const image =
+    product.featuredImage?.url ||
+    product.images[0]?.url ||
+    "https://placehold.co/600x800/png?text=Product";
 
   return (
     <Link

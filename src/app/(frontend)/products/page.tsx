@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { ProductCard } from "@/components/store/product-card";
 import { Button } from "@/components/ui/button";
-import { getBrands, getCategories, getProductList } from "@/lib/store";
+import { getBrands, getCategories, getColors, getProductList, getSizes } from "@/lib/store";
 import { buildMetadata } from "@/lib/metadata";
 
 export const metadata = buildMetadata({
@@ -49,9 +49,11 @@ export default async function ProductsPage({
     ? Number(getParam(params, "maxPrice"))
     : undefined;
 
-  const [brands, categories, listing] = await Promise.all([
+  const [brands, categories, sizes, colors, listing] = await Promise.all([
     getBrands(),
     getCategories(),
+    getSizes(),
+    getColors(),
     getProductList({
       search,
       brand,
@@ -65,9 +67,6 @@ export default async function ProductsPage({
       maxPrice,
     }),
   ]);
-
-  const sizes = ["XS", "S", "M", "L", "XL"];
-  const colors = ["Black", "White", "Navy", "Olive", "Sand", "Rust"];
 
   const buildQuery = (nextPage: number) => {
     const query = new URLSearchParams();
@@ -155,8 +154,8 @@ export default async function ProductsPage({
               >
                 <option value="">All sizes</option>
                 {sizes.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
+                  <option key={option.id} value={option.slug}>
+                    {option.name}
                   </option>
                 ))}
               </select>
@@ -173,8 +172,8 @@ export default async function ProductsPage({
               >
                 <option value="">All colors</option>
                 {colors.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
+                  <option key={option.id} value={option.slug}>
+                    {option.name}
                   </option>
                 ))}
               </select>

@@ -14,21 +14,40 @@ export type CategorySummary = {
   slug: string;
 };
 
+export type MediaSummary = {
+  id: string;
+  url: string;
+  originalName: string;
+};
+
+export type SizeSummary = {
+  id: string;
+  name: string;
+  slug: string;
+};
+
+export type ColorSummary = {
+  id: string;
+  name: string;
+  slug: string;
+};
+
 export type ProductSummary = {
   id: string;
   name: string;
   slug: string;
   price: number;
   compareAtPrice: number | null;
-  images: unknown;
+  featuredImage: MediaSummary | null;
+  images: MediaSummary[];
   brand: BrandSummary | null;
   category: CategorySummary | null;
 };
 
 export type ProductDetail = ProductSummary & {
   description: string;
-  sizes: unknown;
-  colors: unknown;
+  sizes: SizeSummary[];
+  colors: ColorSummary[];
   stock: number;
   isActive: boolean;
 };
@@ -76,11 +95,11 @@ export async function getProductList(
   }
 
   if (filters.size) {
-    where.sizes = { array_contains: [filters.size] };
+    where.sizes = { some: { slug: filters.size } };
   }
 
   if (filters.color) {
-    where.colors = { array_contains: [filters.color] };
+    where.colors = { some: { slug: filters.color } };
   }
 
   if (filters.minPrice || filters.maxPrice) {
@@ -113,7 +132,11 @@ export async function getProductList(
         slug: true,
         price: true,
         compareAtPrice: true,
-        images: true,
+        featuredImage: { select: { id: true, url: true, originalName: true } },
+        images: {
+          orderBy: { sortOrder: "asc" },
+          select: { media: { select: { id: true, url: true, originalName: true } } },
+        },
         brand: { select: { id: true, name: true, slug: true } },
         category: { select: { id: true, name: true, slug: true } },
       },
@@ -122,11 +145,16 @@ export async function getProductList(
 
   const pages = Math.max(1, Math.ceil(total / limit));
 
-  return { products, total, pages, page, limit };
+  const formatted = products.map((product) => ({
+    ...product,
+    images: product.images.map((item) => item.media),
+  }));
+
+  return { products: formatted, total, pages, page, limit };
 }
 
 export async function getFeaturedProducts(limit = 8): Promise<ProductSummary[]> {
-  return prisma.product.findMany({
+  const products = await prisma.product.findMany({
     where: { isActive: true },
     orderBy: { createdAt: "desc" },
     take: limit,
@@ -136,17 +164,26 @@ export async function getFeaturedProducts(limit = 8): Promise<ProductSummary[]> 
       slug: true,
       price: true,
       compareAtPrice: true,
-      images: true,
+      featuredImage: { select: { id: true, url: true, originalName: true } },
+      images: {
+        orderBy: { sortOrder: "asc" },
+        select: { media: { select: { id: true, url: true, originalName: true } } },
+      },
       brand: { select: { id: true, name: true, slug: true } },
       category: { select: { id: true, name: true, slug: true } },
     },
   });
+
+  return products.map((product) => ({
+    ...product,
+    images: product.images.map((item) => item.media),
+  }));
 }
 
 export async function getProductBySlug(
   slug: string
 ): Promise<ProductDetail | null> {
-  return prisma.product.findUnique({
+  const product = await prisma.product.findUnique({
     where: { slug },
     select: {
       id: true,
@@ -155,15 +192,28 @@ export async function getProductBySlug(
       description: true,
       price: true,
       compareAtPrice: true,
-      images: true,
-      sizes: true,
-      colors: true,
+      featuredImage: { select: { id: true, url: true, originalName: true } },
+      images: {
+        orderBy: { sortOrder: "asc" },
+        select: { media: { select: { id: true, url: true, originalName: true } } },
+      },
+      sizes: { select: { id: true, name: true, slug: true } },
+      colors: { select: { id: true, name: true, slug: true } },
       stock: true,
       isActive: true,
       brand: { select: { id: true, name: true, slug: true } },
       category: { select: { id: true, name: true, slug: true } },
     },
   });
+
+  if (!product) {
+    return null;
+  }
+
+  return {
+    ...product,
+    images: product.images.map((item) => item.media),
+  };
 }
 
 export async function getBrands(): Promise<BrandSummary[]> {
@@ -175,6 +225,20 @@ export async function getBrands(): Promise<BrandSummary[]> {
 
 export async function getCategories(): Promise<CategorySummary[]> {
   return prisma.category.findMany({
+    orderBy: { name: "asc" },
+    select: { id: true, name: true, slug: true },
+  });
+}
+
+export async function getSizes(): Promise<SizeSummary[]> {
+  return prisma.size.findMany({
+    orderBy: { name: "asc" },
+    select: { id: true, name: true, slug: true },
+  });
+}
+
+export async function getColors(): Promise<ColorSummary[]> {
+  return prisma.color.findMany({
     orderBy: { name: "asc" },
     select: { id: true, name: true, slug: true },
   });

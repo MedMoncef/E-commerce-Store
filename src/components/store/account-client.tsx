@@ -8,7 +8,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/format";
-import { toStringArray } from "@/lib/data-utils";
 
 const STATUSES = [
   "ALL",
@@ -36,7 +35,8 @@ type OrderItem = {
     id: string;
     name: string;
     slug: string;
-    images: unknown;
+    featuredImage?: { url: string } | null;
+    images: Array<{ url: string }>;
   };
 };
 
@@ -55,7 +55,8 @@ type Favorite = {
     name: string;
     slug: string;
     price: number;
-    images: unknown;
+    featuredImage?: { url: string } | null;
+    images: Array<{ url: string }>;
   };
 };
 
@@ -168,9 +169,9 @@ export function AccountClient({ user }: AccountClientProps) {
                   </div>
                   <div className="mt-4 space-y-3">
                     {order.items.map((item) => {
-                      const images = toStringArray(item.product.images);
                       const image =
-                        images[0] ||
+                        item.product.featuredImage?.url ||
+                        item.product.images[0]?.url ||
                         "https://placehold.co/600x800/png?text=Product";
                       return (
                         <div
@@ -220,9 +221,9 @@ export function AccountClient({ user }: AccountClientProps) {
             ) : (
               <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                 {favorites.map((favorite) => {
-                  const images = toStringArray(favorite.product.images);
                   const image =
-                    images[0] ||
+                    favorite.product.featuredImage?.url ||
+                    favorite.product.images[0]?.url ||
                     "https://placehold.co/600x800/png?text=Product";
                   return (
                     <Link

@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { jsonError, jsonSuccess, requireAdmin } from "@/lib/api-helpers";
-import { categorySchema } from "@/lib/validators";
+import { colorSchema } from "@/lib/validators";
 
 export async function PUT(
   request: Request,
@@ -14,28 +14,24 @@ export async function PUT(
 
   const { id } = await params;
   const body = await request.json().catch(() => null);
-  const parsed = categorySchema.safeParse(body);
+  const parsed = colorSchema.safeParse(body);
 
   if (!parsed.success) {
-    return jsonError("Invalid category payload.");
+    return jsonError("Invalid color payload.");
   }
 
-  const existing = await prisma.category.findUnique({ where: { id } });
+  const existing = await prisma.color.findUnique({ where: { id } });
 
   if (!existing) {
-    return jsonError("Category not found.", 404);
+    return jsonError("Color not found.", 404);
   }
 
-  const category = await prisma.category.update({
+  const color = await prisma.color.update({
     where: { id },
-    data: {
-      name: parsed.data.name,
-      slug: parsed.data.slug,
-      imageId: parsed.data.imageId ?? null,
-    },
+    data: parsed.data,
   });
 
-  return jsonSuccess(category);
+  return jsonSuccess(color);
 }
 
 export async function DELETE(
@@ -50,13 +46,13 @@ export async function DELETE(
 
   const { id } = await params;
 
-  const existing = await prisma.category.findUnique({ where: { id } });
+  const existing = await prisma.color.findUnique({ where: { id } });
 
   if (!existing) {
-    return jsonError("Category not found.", 404);
+    return jsonError("Color not found.", 404);
   }
 
-  await prisma.category.delete({ where: { id } });
+  await prisma.color.delete({ where: { id } });
 
   return jsonSuccess({ deleted: true });
 }

@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import { ProductCard } from "@/components/store/product-card";
 import { Button } from "@/components/ui/button";
 import { prisma } from "@/lib/prisma";
-import { getBrands, getProductList } from "@/lib/store";
+import { getBrands, getColors, getProductList, getSizes } from "@/lib/store";
 import { buildMetadata } from "@/lib/metadata";
 
 export async function generateMetadata({
@@ -65,8 +65,10 @@ export default async function CategoryPage({
     | undefined) || "newest";
   const page = Number(getParam(query, "page") || "1");
 
-  const [brands, listing] = await Promise.all([
+  const [brands, sizes, colors, listing] = await Promise.all([
     getBrands(),
+    getSizes(),
+    getColors(),
     getProductList({
       category: slug,
       brand,
@@ -127,16 +129,9 @@ export default async function CategoryPage({
                 className="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm"
               >
                 <option value="">All sizes</option>
-                {[
-                  "XS",
-                  "S",
-                  "M",
-                  "L",
-                  "XL",
-                  "One size",
-                ].map((option) => (
-                  <option key={option} value={option}>
-                    {option}
+                {sizes.map((option) => (
+                  <option key={option.id} value={option.slug}>
+                    {option.name}
                   </option>
                 ))}
               </select>
@@ -152,13 +147,11 @@ export default async function CategoryPage({
                 className="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm"
               >
                 <option value="">All colors</option>
-                {["Black", "White", "Navy", "Olive", "Sand", "Rust"].map(
-                  (option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  )
-                )}
+                {colors.map((option) => (
+                  <option key={option.id} value={option.slug}>
+                    {option.name}
+                  </option>
+                ))}
               </select>
             </div>
 

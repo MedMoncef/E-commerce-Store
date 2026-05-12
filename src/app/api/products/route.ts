@@ -39,11 +39,11 @@ export async function GET(request: NextRequest) {
   }
 
   if (size) {
-    where.sizes = { array_contains: [size] };
+    where.sizes = { some: { slug: size } };
   }
 
   if (color) {
-    where.colors = { array_contains: [color] };
+    where.colors = { some: { slug: color } };
   }
 
   if (minPrice || maxPrice) {
@@ -73,11 +73,21 @@ export async function GET(request: NextRequest) {
       include: {
         brand: { select: { id: true, name: true, slug: true } },
         category: { select: { id: true, name: true, slug: true } },
+        featuredImage: { select: { id: true, url: true, originalName: true } },
+        images: {
+          orderBy: { sortOrder: "asc" },
+          select: { media: { select: { id: true, url: true, originalName: true } } },
+        },
       },
     }),
   ]);
 
   const pages = Math.max(1, Math.ceil(total / limit));
 
-  return jsonSuccess({ products, total, pages });
+  const formatted = products.map((product) => ({
+    ...product,
+    images: product.images.map((item) => item.media),
+  }));
+
+  return jsonSuccess({ products: formatted, total, pages });
 }

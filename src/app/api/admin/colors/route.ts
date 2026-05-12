@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { jsonError, jsonSuccess, requireAdmin } from "@/lib/api-helpers";
-import { brandSchema } from "@/lib/validators";
+import { colorSchema } from "@/lib/validators";
 
 export async function GET() {
   const { response } = await requireAdmin();
@@ -9,11 +9,11 @@ export async function GET() {
     return response;
   }
 
-  const brands = await prisma.brand.findMany({
+  const colors = await prisma.color.findMany({
     orderBy: { name: "asc" },
   });
 
-  return jsonSuccess(brands);
+  return jsonSuccess(colors);
 }
 
 export async function POST(request: Request) {
@@ -24,19 +24,15 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json().catch(() => null);
-  const parsed = brandSchema.safeParse(body);
+  const parsed = colorSchema.safeParse(body);
 
   if (!parsed.success) {
-    return jsonError("Invalid brand payload.");
+    return jsonError("Invalid color payload.");
   }
 
-  const brand = await prisma.brand.create({
-    data: {
-      name: parsed.data.name,
-      slug: parsed.data.slug,
-      imageId: parsed.data.imageId ?? null,
-    },
+  const color = await prisma.color.create({
+    data: parsed.data,
   });
 
-  return jsonSuccess(brand, { status: 201 });
+  return jsonSuccess(color, { status: 201 });
 }
