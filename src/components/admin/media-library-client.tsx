@@ -14,7 +14,15 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import type { MediaItem } from "@/types/media";
 
-const UNUSED_DAYS = 7;
+const RAW_UNUSED_AGE_HOURS = Number(
+  process.env.NEXT_PUBLIC_UNUSED_MEDIA_AGE_HOURS || "168"
+);
+const UNUSED_AGE_HOURS = Number.isFinite(RAW_UNUSED_AGE_HOURS) && RAW_UNUSED_AGE_HOURS > 0
+  ? RAW_UNUSED_AGE_HOURS
+  : 168;
+const UNUSED_AGE_LABEL = UNUSED_AGE_HOURS % 24 === 0
+  ? `${UNUSED_AGE_HOURS / 24} days`
+  : `${UNUSED_AGE_HOURS} hours`;
 
 function formatBytes(size?: number) {
   if (!size && size !== 0) return "-";
@@ -62,7 +70,9 @@ export function MediaLibraryClient() {
   };
 
   const fetchUnusedCount = async () => {
-    const response = await fetch(`/api/admin/media/unused?days=${UNUSED_DAYS}`);
+    const response = await fetch(
+      `/api/admin/media/unused?hours=${UNUSED_AGE_HOURS}`
+    );
     const result = (await response.json()) as {
       success: boolean;
       data?: { count: number };
@@ -81,7 +91,7 @@ export function MediaLibraryClient() {
     setUnusedError(null);
 
     const response = await fetch(
-      `/api/admin/media/unused?days=${UNUSED_DAYS}&include=1`
+      `/api/admin/media/unused?hours=${UNUSED_AGE_HOURS}&include=1`
     );
     const result = (await response.json()) as {
       success: boolean;
@@ -242,7 +252,7 @@ export function MediaLibraryClient() {
             <div>
               <p className="font-semibold">Unused images detected</p>
               <p className="text-xs text-amber-800">
-                {unusedCount} image{unusedCount === 1 ? "" : "s"} older than {UNUSED_DAYS} days
+                {unusedCount} image{unusedCount === 1 ? "" : "s"} older than {UNUSED_AGE_LABEL}
                 aren&apos;t used by products, brands, or categories.
               </p>
             </div>

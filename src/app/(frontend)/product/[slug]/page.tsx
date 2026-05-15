@@ -1,9 +1,9 @@
-import Image from "next/image";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { AddToCartForm } from "@/components/store/add-to-cart-form";
+import { ProductGallery } from "@/components/store/product-gallery";
 import { FavoriteButton } from "@/components/store/favorite-button";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/format";
@@ -47,15 +47,13 @@ export default async function ProductDetailPage({
   const sizes = product.sizes.map((size) => size.name);
   const colors = product.colors.map((color) => color.name);
   const featuredImage = product.featuredImage?.url ?? null;
-
-  const mainImage =
-    featuredImage ||
-    galleryImages[0] ||
-    "https://placehold.co/900x1200/png?text=Product";
-  const cartImages = [
-    mainImage,
-    ...galleryImages.filter((image) => image !== mainImage),
+  const imageList = [
+    ...(featuredImage ? [featuredImage] : []),
+    ...galleryImages,
   ];
+  const cartImages = Array.from(new Set(imageList));
+  const fallbackImage = "https://placehold.co/900x1200/png?text=Product";
+  const finalCartImages = cartImages.length > 0 ? cartImages : [fallbackImage];
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-12">
@@ -77,28 +75,11 @@ export default async function ProductDetailPage({
       </div>
 
       <div className="grid gap-10 lg:grid-cols-[1.1fr_0.9fr]">
-        <div className="space-y-4">
-          <div className="relative aspect-4/5 overflow-hidden rounded-3xl border border-border bg-muted/30">
-            <Image
-              src={mainImage}
-              alt={product.name}
-              fill
-              className="object-cover"
-            />
-          </div>
-          {galleryImages.length > 0 && (
-            <div className="grid grid-cols-3 gap-3">
-              {galleryImages.slice(0, 3).map((image) => (
-                <div
-                  key={image}
-                  className="relative aspect-square overflow-hidden rounded-2xl border border-border"
-                >
-                  <Image src={image} alt={product.name} fill className="object-cover" />
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        <ProductGallery
+          featuredImage={featuredImage}
+          galleryImages={galleryImages}
+          alt={product.name}
+        />
 
         <div className="space-y-6">
           <div className="space-y-2">
@@ -137,7 +118,7 @@ export default async function ProductDetailPage({
               name: product.name,
               slug: product.slug,
               price: product.price,
-              images: cartImages,
+              images: finalCartImages,
               sizes,
               colors,
               stock: product.stock,

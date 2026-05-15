@@ -29,6 +29,7 @@ import {
 import { slugify } from "@/lib/slug";
 import { MediaPicker } from "@/components/admin/media-picker";
 import type { MediaItem } from "@/types/media";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 const formSchema = z.object({
   name: z.string().min(2),
@@ -55,6 +56,8 @@ export function AdminBrandsClient({ brands }: AdminBrandsClientProps) {
   const [error, setError] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState<MediaItem | null>(null);
   const [pendingDeleteImageIds, setPendingDeleteImageIds] = useState<string[]>([]);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmTargetId, setConfirmTargetId] = useState<string | null>(null);
 
   const attemptDeleteImage = async (imageId: string) => {
     const response = await fetch(`/api/admin/media/${imageId}`, {
@@ -81,6 +84,14 @@ export function AdminBrandsClient({ brands }: AdminBrandsClientProps) {
       return;
     }
     setPendingDeleteImageIds((prev) => prev.filter((id) => id !== imageId));
+  };
+
+  const handleConfirmDelete = () => {
+    if (confirmTargetId) {
+      queueDeleteImage(confirmTargetId);
+    }
+    setConfirmTargetId(null);
+    setConfirmOpen(false);
   };
 
   const form = useForm<FormValues>({
@@ -222,12 +233,8 @@ export function AdminBrandsClient({ brands }: AdminBrandsClientProps) {
                     onSelect={async (items) => {
                       const image = items[0] ?? null;
                       if (selectedImage && image && selectedImage.id !== image.id) {
-                        const shouldDelete = window.confirm(
-                          "Delete the previous brand image from the media library?"
-                        );
-                        if (shouldDelete) {
-                          queueDeleteImage(selectedImage.id);
-                        }
+                        setConfirmTargetId(selectedImage.id);
+                        setConfirmOpen(true);
                       }
                       unqueueDeleteImage(image?.id ?? null);
                       setSelectedImage(image);
@@ -322,6 +329,20 @@ export function AdminBrandsClient({ brands }: AdminBrandsClientProps) {
           </TableBody>
         </Table>
       </div>
+
+      <ConfirmDialog
+        open={confirmOpen}
+        title="Delete previous image?"
+        description="Delete the previous brand image from the media library so it does not accumulate."
+        confirmLabel="Delete image"
+        onConfirm={handleConfirmDelete}
+        onOpenChange={(nextOpen) => {
+          setConfirmOpen(nextOpen);
+          if (!nextOpen) {
+            setConfirmTargetId(null);
+          }
+        }}
+      />
     </div>
   );
 }

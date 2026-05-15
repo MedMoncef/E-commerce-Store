@@ -32,6 +32,7 @@ import { formatCurrency } from "@/lib/format";
 import { slugify } from "@/lib/slug";
 import { MediaPicker } from "@/components/admin/media-picker";
 import type { MediaItem } from "@/types/media";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 const formSchema = z.object({
   name: z.string().min(2),
@@ -118,6 +119,10 @@ export function AdminProductsClient({
   const [creatingSize, setCreatingSize] = useState(false);
   const [creatingColor, setCreatingColor] = useState(false);
   const [pendingDeleteMediaIds, setPendingDeleteMediaIds] = useState<string[]>([]);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmTitle, setConfirmTitle] = useState("Delete image?");
+  const [confirmDescription, setConfirmDescription] = useState("");
+  const [confirmTargetIds, setConfirmTargetIds] = useState<string[]>([]);
 
   const brandOptions = useMemo(
     () => mergeOptions(brands, createdBrands),
@@ -182,6 +187,22 @@ export function AdminProductsClient({
     setPendingDeleteMediaIds((prev) =>
       prev.filter((id) => !imageIds.includes(id))
     );
+  };
+
+  const requestDeleteMedia = (ids: string[], title: string, description: string) => {
+    if (ids.length === 0) {
+      return;
+    }
+    setConfirmTargetIds(ids);
+    setConfirmTitle(title);
+    setConfirmDescription(description);
+    setConfirmOpen(true);
+  };
+
+  const handleConfirmDeleteMedia = () => {
+    confirmTargetIds.forEach((id) => queueDeleteMedia(id));
+    setConfirmTargetIds([]);
+    setConfirmOpen(false);
   };
 
   useEffect(() => {
@@ -297,13 +318,11 @@ export function AdminProductsClient({
       return;
     }
 
-    const shouldDelete = window.confirm(
-      "Delete this image from the media library?"
+    requestDeleteMedia(
+      [id],
+      "Delete image?",
+      "Delete this image from the media library so it does not accumulate."
     );
-
-    if (shouldDelete) {
-      queueDeleteMedia(id);
-    }
   };
 
   const createBrand = async () => {
@@ -667,12 +686,11 @@ export function AdminProductsClient({
                             "Previous featured image is still in the gallery. Remove it there to delete."
                           );
                         } else {
-                          const shouldDelete = window.confirm(
-                            "Delete the previous featured image from the media library?"
+                          requestDeleteMedia(
+                            [featuredImage.id],
+                            "Delete previous featured image?",
+                            "Delete the previous featured image from the media library so it does not accumulate."
                           );
-                          if (shouldDelete) {
-                            queueDeleteMedia(featuredImage.id);
-                          }
                         }
                       }
                       unqueueDeleteMedia(image?.id ? [image.id] : []);
@@ -733,14 +751,11 @@ export function AdminProductsClient({
                       );
 
                       if (removable.length > 0) {
-                        const shouldDelete = window.confirm(
-                          `Delete ${removable.length} removed image(s) from the media library?`
+                        requestDeleteMedia(
+                          removable.map((image) => image.id),
+                          "Delete removed images?",
+                          `Delete ${removable.length} removed image(s) from the media library so they do not accumulate.`
                         );
-                        if (shouldDelete) {
-                          for (const image of removable) {
-                            queueDeleteMedia(image.id);
-                          }
-                        }
                       }
 
                       unqueueDeleteMedia(items.map((image) => image.id));
@@ -991,6 +1006,20 @@ export function AdminProductsClient({
           </TableBody>
         </Table>
       </div>
+
+      <ConfirmDialog
+        open={confirmOpen}
+        title={confirmTitle}
+        description={confirmDescription}
+        confirmLabel="Delete image"
+        onConfirm={handleConfirmDeleteMedia}
+        onOpenChange={(nextOpen) => {
+          setConfirmOpen(nextOpen);
+          if (!nextOpen) {
+            setConfirmTargetIds([]);
+          }
+        }}
+      />
     </div>
   );
 }

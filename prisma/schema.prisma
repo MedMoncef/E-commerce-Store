@@ -27,6 +27,14 @@ model User {
   hashedPassword String     @db.VarChar(191)
   role           Role       @default(USER)
   image          String?    @db.VarChar(191)
+  phone          String?    @db.VarChar(32)
+  addressLine1   String?    @db.VarChar(191)
+  addressLine2   String?    @db.VarChar(191)
+  city           String?    @db.VarChar(191)
+  postalCode     String?    @db.VarChar(191)
+  country        String?    @db.VarChar(191)
+  previousNames  Json?
+  previousEmails Json?
   emailVerified  DateTime?
   orders         Order[]
   favorites      Favorite[]

@@ -98,3 +98,30 @@ export const orderStatusSchema = z.object({
     "CANCELLED",
   ]),
 });
+
+const optionalString = () =>
+  z.preprocess(
+    (value) => (value === "" || value === null ? undefined : value),
+    z.string().optional()
+  );
+
+const optionalNullableString = () =>
+  z.preprocess(
+    (value) => (value === "" ? null : value),
+    z.string().nullable().optional()
+  );
+
+export const profileUpdateSchema = z.object({
+  name: optionalString().refine((value) => !value || value.length >= 2, {
+    message: "Name must be at least 2 characters.",
+  }),
+  email: optionalString().refine((value) => !value || value.includes("@"), {
+    message: "Email must be valid.",
+  }),
+  phone: optionalNullableString(),
+  addressLine1: optionalNullableString(),
+  addressLine2: optionalNullableString(),
+  city: optionalNullableString(),
+  postalCode: optionalNullableString(),
+  country: optionalNullableString(),
+});
