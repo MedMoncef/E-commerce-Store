@@ -117,6 +117,7 @@ export function AdminProductsClient({
   const [creatingCategory, setCreatingCategory] = useState(false);
   const [creatingSize, setCreatingSize] = useState(false);
   const [creatingColor, setCreatingColor] = useState(false);
+  const [pendingDeleteMediaIds, setPendingDeleteMediaIds] = useState<string[]>([]);
 
   const brandOptions = useMemo(
     () => mergeOptions(brands, createdBrands),
@@ -153,6 +154,35 @@ export function AdminProductsClient({
       isActive: true,
     },
   });
+
+  const attemptDeleteMedia = async (imageId: string) => {
+    const response = await fetch(`/api/admin/media/${imageId}`, {
+      method: "DELETE",
+    });
+    const result = (await response.json()) as { success: boolean; error?: string };
+
+    if (!response.ok || !result.success) {
+      setError(result.error || "Unable to delete image.");
+      return false;
+    }
+
+    return true;
+  };
+
+  const queueDeleteMedia = (imageId: string) => {
+    setPendingDeleteMediaIds((prev) =>
+      prev.includes(imageId) ? prev : [...prev, imageId]
+    );
+  };
+
+  const unqueueDeleteMedia = (imageIds: string[]) => {
+    if (imageIds.length === 0) {
+      return;
+    }
+    setPendingDeleteMediaIds((prev) =>
+      prev.filter((id) => !imageIds.includes(id))
+    );
+  };
 
   useEffect(() => {
     if (activeProduct) {
@@ -221,6 +251,22 @@ export function AdminProductsClient({
       return;
     }
 
+    const pending = pendingDeleteMediaIds;
+    setPendingDeleteMediaIds([]);
+
+    if (pending.length > 0) {
+      const failures: string[] = [];
+      for (const imageId of pending) {
+        const deleted = await attemptDeleteMedia(imageId);
+        if (!deleted) {
+          failures.push(imageId);
+        }
+      }
+      if (failures.length > 0) {
+        window.alert("Some images could not be deleted because they are still in use.");
+      }
+    }
+
     setOpen(false);
     setActiveProduct(null);
     setFeaturedImage(null);
@@ -238,13 +284,26 @@ export function AdminProductsClient({
     router.refresh();
   };
 
-  const handleRemoveGalleryImage = (id: string) => {
+  const handleRemoveGalleryImage = async (id: string) => {
     const nextImages = galleryImages.filter((image) => image.id !== id);
     setGalleryImages(nextImages);
     form.setValue(
       "galleryImageIds",
       nextImages.map((image) => image.id)
     );
+
+    if (featuredImage?.id === id) {
+      setError("This image is still set as featured.");
+      return;
+    }
+
+    const shouldDelete = window.confirm(
+      "Delete this image from the media library?"
+    );
+
+    if (shouldDelete) {
+      queueDeleteMedia(id);
+    }
   };
 
   const createBrand = async () => {
@@ -407,6 +466,7 @@ export function AdminProductsClient({
               setError(null);
               setFeaturedImage(null);
               setGalleryImages([]);
+              setPendingDeleteMediaIds([]);
               setShowBrandForm(false);
               setShowCategoryForm(false);
               setShowSizeForm(false);
@@ -424,6 +484,7 @@ export function AdminProductsClient({
                 setActiveProduct(null);
                 setFeaturedImage(null);
                 setGalleryImages([]);
+                setPendingDeleteMediaIds([]);
                 setError(null);
               }}
             >
@@ -598,8 +659,23 @@ export function AdminProductsClient({
                   <MediaPicker
                     title="Select featured image"
                     selectedIds={featuredImage ? [featuredImage.id] : []}
-                    onSelect={(items) => {
+                    onSelect={async (items) => {
                       const image = items[0] ?? null;
+                      if (featuredImage && image && featuredImage.id !== image.id) {
+                        if (galleryImages.some((item) => item.id === featuredImage.id)) {
+                          setError(
+                            "Previous featured image is still in the gallery. Remove it there to delete."
+                          );
+                        } else {
+                          const shouldDelete = window.confirm(
+                            "Delete the previous featured image from the media library?"
+                          );
+                          if (shouldDelete) {
+                            queueDeleteMedia(featuredImage.id);
+                          }
+                        }
+                      }
+                      unqueueDeleteMedia(image?.id ? [image.id] : []);
                       setFeaturedImage(image);
                       form.setValue("featuredImageId", image?.id ?? null);
                     }}
@@ -648,7 +724,26 @@ export function AdminProductsClient({
                     title="Select gallery images"
                     multiple
                     selectedIds={galleryImages.map((image) => image.id)}
-                    onSelect={(items) => {
+                    onSelect={async (items) => {
+                      const removed = galleryImages.filter(
+                        (image) => !items.some((next) => next.id === image.id)
+                      );
+                      const removable = removed.filter(
+                        (image) => image.id !== featuredImage?.id
+                      );
+
+                      if (removable.length > 0) {
+                        const shouldDelete = window.confirm(
+                          `Delete ${removable.length} removed image(s) from the media library?`
+                        );
+                        if (shouldDelete) {
+                          for (const image of removable) {
+                            queueDeleteMedia(image.id);
+                          }
+                        }
+                      }
+
+                      unqueueDeleteMedia(items.map((image) => image.id));
                       setGalleryImages(items);
                       form.setValue(
                         "galleryImageIds",
@@ -875,6 +970,7 @@ export function AdminProductsClient({
                         setActiveProduct(product);
                         setFeaturedImage(product.featuredImage);
                         setGalleryImages(product.images);
+                        setPendingDeleteMediaIds([]);
                         setError(null);
                         setOpen(true);
                       }}

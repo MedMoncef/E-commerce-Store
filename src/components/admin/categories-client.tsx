@@ -56,6 +56,34 @@ export function AdminCategoriesClient({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState<MediaItem | null>(null);
+  const [pendingDeleteImageIds, setPendingDeleteImageIds] = useState<string[]>([]);
+
+  const attemptDeleteImage = async (imageId: string) => {
+    const response = await fetch(`/api/admin/media/${imageId}`, {
+      method: "DELETE",
+    });
+    const result = (await response.json()) as { success: boolean; error?: string };
+
+    if (!response.ok || !result.success) {
+      setError(result.error || "Unable to delete image.");
+      return false;
+    }
+
+    return true;
+  };
+
+  const queueDeleteImage = (imageId: string) => {
+    setPendingDeleteImageIds((prev) =>
+      prev.includes(imageId) ? prev : [...prev, imageId]
+    );
+  };
+
+  const unqueueDeleteImage = (imageId: string | null) => {
+    if (!imageId) {
+      return;
+    }
+    setPendingDeleteImageIds((prev) => prev.filter((id) => id !== imageId));
+  };
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -99,6 +127,22 @@ export function AdminCategoriesClient({
       return;
     }
 
+    const pending = pendingDeleteImageIds;
+    setPendingDeleteImageIds([]);
+
+    if (pending.length > 0) {
+      const failures: string[] = [];
+      for (const imageId of pending) {
+        const deleted = await attemptDeleteImage(imageId);
+        if (!deleted) {
+          failures.push(imageId);
+        }
+      }
+      if (failures.length > 0) {
+        window.alert("Some images could not be deleted because they are still in use.");
+      }
+    }
+
     setOpen(false);
     setActiveCategory(null);
     setSubmitting(false);
@@ -130,6 +174,9 @@ export function AdminCategoriesClient({
             if (nextOpen && !activeCategory) {
               form.reset({ name: "", slug: "", imageId: null });
               setSelectedImage(null);
+            }
+            if (!nextOpen) {
+              setPendingDeleteImageIds([]);
             }
           }}
         >
@@ -176,8 +223,17 @@ export function AdminCategoriesClient({
                   <MediaPicker
                     title="Select category image"
                     selectedIds={selectedImage ? [selectedImage.id] : []}
-                    onSelect={(items) => {
+                    onSelect={async (items) => {
                       const image = items[0] ?? null;
+                      if (selectedImage && image && selectedImage.id !== image.id) {
+                        const shouldDelete = window.confirm(
+                          "Delete the previous category image from the media library?"
+                        );
+                        if (shouldDelete) {
+                          queueDeleteImage(selectedImage.id);
+                        }
+                      }
+                      unqueueDeleteImage(image?.id ?? null);
                       setSelectedImage(image);
                       form.setValue("imageId", image?.id ?? null);
                     }}

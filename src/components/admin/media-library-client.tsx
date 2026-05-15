@@ -4,7 +4,17 @@ import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import type { MediaItem } from "@/types/media";
+
+const UNUSED_DAYS = 7;
 
 function formatBytes(size?: number) {
   if (!size && size !== 0) return "-";
@@ -14,10 +24,21 @@ function formatBytes(size?: number) {
   return `${(kb / 1024).toFixed(1)} MB`;
 }
 
+function formatDate(value?: string) {
+  if (!value) return "-";
+  return new Date(value).toLocaleDateString();
+}
+
 export function MediaLibraryClient() {
   const [media, setMedia] = useState<MediaItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [unusedCount, setUnusedCount] = useState(0);
+  const [unusedItems, setUnusedItems] = useState<MediaItem[]>([]);
+  const [unusedOpen, setUnusedOpen] = useState(false);
+  const [unusedLoading, setUnusedLoading] = useState(false);
+  const [unusedError, setUnusedError] = useState<string | null>(null);
+  const [selectedUnused, setSelectedUnused] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchMedia = async () => {
@@ -40,8 +61,48 @@ export function MediaLibraryClient() {
     setLoading(false);
   };
 
+  const fetchUnusedCount = async () => {
+    const response = await fetch(`/api/admin/media/unused?days=${UNUSED_DAYS}`);
+    const result = (await response.json()) as {
+      success: boolean;
+      data?: { count: number };
+      error?: string;
+    };
+
+    if (response.ok && result.success && result.data) {
+      setUnusedCount(result.data.count);
+    } else {
+      setUnusedError(result.error || "Unable to load unused image count.");
+    }
+  };
+
+  const fetchUnusedItems = async () => {
+    setUnusedLoading(true);
+    setUnusedError(null);
+
+    const response = await fetch(
+      `/api/admin/media/unused?days=${UNUSED_DAYS}&include=1`
+    );
+    const result = (await response.json()) as {
+      success: boolean;
+      data?: { count: number; items: MediaItem[] };
+      error?: string;
+    };
+
+    if (response.ok && result.success && result.data) {
+      setUnusedItems(result.data.items);
+      setUnusedCount(result.data.count);
+      setSelectedUnused([]);
+    } else {
+      setUnusedError(result.error || "Unable to load unused images.");
+    }
+
+    setUnusedLoading(false);
+  };
+
   useEffect(() => {
     fetchMedia();
+    fetchUnusedCount();
   }, []);
 
   const handleUpload = async (files: FileList | null) => {
@@ -71,6 +132,7 @@ export function MediaLibraryClient() {
     }
 
     setMedia((prev) => [...result.data!, ...prev]);
+    fetchUnusedCount();
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -92,6 +154,62 @@ export function MediaLibraryClient() {
     }
 
     setMedia((prev) => prev.filter((item) => item.id !== id));
+    setUnusedItems((prev) => prev.filter((item) => item.id !== id));
+    setSelectedUnused((prev) => prev.filter((item) => item !== id));
+    fetchUnusedCount();
+  };
+
+  const handleReviewUnused = async () => {
+    setUnusedOpen(true);
+    await fetchUnusedItems();
+  };
+
+  const toggleUnusedSelection = (id: string) => {
+    setSelectedUnused((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleDeleteUnused = async () => {
+    if (selectedUnused.length === 0) {
+      return;
+    }
+
+    if (!window.confirm("Delete selected unused images?")) {
+      return;
+    }
+
+    setUnusedLoading(true);
+    setUnusedError(null);
+
+    const failed: string[] = [];
+
+    for (const id of selectedUnused) {
+      const response = await fetch(`/api/admin/media/${id}`, {
+        method: "DELETE",
+      });
+      const result = (await response.json()) as {
+        success: boolean;
+        error?: string;
+      };
+
+      if (!response.ok || !result.success) {
+        failed.push(result.error || "Unable to delete image.");
+        continue;
+      }
+
+      setMedia((prev) => prev.filter((item) => item.id !== id));
+      setUnusedItems((prev) => prev.filter((item) => item.id !== id));
+    }
+
+    setSelectedUnused([]);
+    await fetchUnusedCount();
+
+    if (failed.length > 0) {
+      setUnusedError(failed[0]);
+    }
+
+    setUnusedLoading(false);
   };
 
   return (
@@ -117,6 +235,23 @@ export function MediaLibraryClient() {
           </Button>
         </div>
       </div>
+
+      {unusedCount > 0 && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="font-semibold">Unused images detected</p>
+              <p className="text-xs text-amber-800">
+                {unusedCount} image{unusedCount === 1 ? "" : "s"} older than {UNUSED_DAYS} days
+                aren&apos;t used by products, brands, or categories.
+              </p>
+            </div>
+            <Button size="sm" variant="outline" onClick={handleReviewUnused}>
+              Review unused
+            </Button>
+          </div>
+        </div>
+      )}
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 
@@ -157,6 +292,94 @@ export function MediaLibraryClient() {
           ))}
         </div>
       )}
+
+      <Dialog open={unusedOpen} onOpenChange={setUnusedOpen}>
+        <DialogContent className="max-h-[85vh] max-w-5xl overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Unused images</DialogTitle>
+          </DialogHeader>
+
+          {unusedError && <p className="text-sm text-destructive">{unusedError}</p>}
+
+          {unusedLoading ? (
+            <p className="text-sm text-muted-foreground">Loading unused images...</p>
+          ) : unusedItems.length === 0 ? (
+            <div className="rounded-2xl border border-border bg-card p-8 text-center">
+              <p className="text-sm text-muted-foreground">No unused images.</p>
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {unusedItems.map((item) => {
+                const selected = selectedUnused.includes(item.id);
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    className={`rounded-2xl border p-3 text-left transition ${
+                      selected
+                        ? "border-primary ring-2 ring-primary/20"
+                        : "border-border hover:border-primary/40"
+                    }`}
+                    onClick={() => toggleUnusedSelection(item.id)}
+                  >
+                    <div className="flex items-start gap-3">
+                      <Checkbox
+                        checked={selected}
+                      />
+                      <div className="relative h-16 w-16 overflow-hidden rounded-lg bg-muted/40">
+                        <Image
+                          src={item.url}
+                          alt={item.originalName}
+                          fill
+                          className="object-cover"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium line-clamp-1">
+                          {item.originalName}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatBytes(item.size)} · {formatDate(item.createdAt)}
+                        </p>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          <DialogFooter>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelectedUnused(unusedItems.map((item) => item.id))}
+                >
+                  Select all
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelectedUnused([])}
+                >
+                  Clear
+                </Button>
+              </div>
+              <Button
+                type="button"
+                onClick={handleDeleteUnused}
+                disabled={selectedUnused.length === 0 || unusedLoading}
+              >
+                Delete selected
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
