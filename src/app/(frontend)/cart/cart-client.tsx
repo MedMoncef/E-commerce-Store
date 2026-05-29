@@ -57,10 +57,12 @@ export default function CartClient() {
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <div className="flex items-center gap-2 rounded-full border border-border px-3 py-1">
+                  <div className="flex items-center gap-1 rounded-full border border-border px-2 py-1">
                     <button
-                      className="text-sm"
+                      type="button"
+                      className="flex h-8 w-8 items-center justify-center rounded-full text-base hover:bg-muted/50"
                       onClick={() => updateQuantity(item.key, item.quantity - 1)}
+                      aria-label="Decrease quantity"
                     >
                       -
                     </button>
@@ -68,8 +70,10 @@ export default function CartClient() {
                       {item.quantity}
                     </span>
                     <button
-                      className="text-sm"
+                      type="button"
+                      className="flex h-8 w-8 items-center justify-center rounded-full text-base hover:bg-muted/50"
                       onClick={() => updateQuantity(item.key, item.quantity + 1)}
+                      aria-label="Increase quantity"
                     >
                       +
                     </button>

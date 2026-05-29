@@ -67,6 +67,8 @@ export async function POST(request: Request) {
           productId: item.productId,
           quantity: item.quantity,
           price: productMap.get(item.productId)?.price ?? 0,
+          size: item.size ?? null,
+          color: item.color ?? null,
         })),
       },
     },

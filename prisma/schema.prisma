@@ -180,6 +180,8 @@ model OrderItem {
   productId String   @db.VarChar(191)
   quantity  Int
   price     Float
+  size      String?  @db.VarChar(64)
+  color     String?  @db.VarChar(64)
   order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product   Product  @relation(fields: [productId], references: [id])
   createdAt DateTime @default(now())

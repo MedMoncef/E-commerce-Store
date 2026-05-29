@@ -63,6 +63,8 @@ export default function CheckoutClient() {
       items: items.map((item) => ({
         productId: item.productId,
         quantity: item.quantity,
+        size: item.size,
+        color: item.color,
       })),
       shipping: {
         name: values.name,

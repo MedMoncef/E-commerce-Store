@@ -46,27 +46,43 @@ export async function PATCH(
 
       const shouldConfirm =
         parsed.data.status === "CONFIRMED" && order.status !== "CONFIRMED";
+      const shouldCancel =
+        parsed.data.status === "CANCELLED" && order.status !== "CANCELLED";
+      const shouldRestock =
+        shouldCancel &&
+        ["CONFIRMED", "SHIPPED", "DELIVERED"].includes(order.status);
 
-      if (shouldConfirm) {
+      if (shouldConfirm || shouldRestock) {
         const itemsWithProducts = await tx.orderItem.findMany({
           where: { orderId: order.id },
           include: { product: true },
         });
 
-        for (const item of itemsWithProducts) {
-          if (item.product.stock < item.quantity) {
-            throw new AdminOrderError(
-              `Insufficient stock for ${item.product.name}.`,
-              400
-            );
+        if (shouldConfirm) {
+          for (const item of itemsWithProducts) {
+            if (item.product.stock < item.quantity) {
+              throw new AdminOrderError(
+                `Insufficient stock for ${item.product.name}.`,
+                400
+              );
+            }
+          }
+
+          for (const item of itemsWithProducts) {
+            await tx.product.update({
+              where: { id: item.productId },
+              data: { stock: { decrement: item.quantity } },
+            });
           }
         }
 
-        for (const item of itemsWithProducts) {
-          await tx.product.update({
-            where: { id: item.productId },
-            data: { stock: { decrement: item.quantity } },
-          });
+        if (shouldRestock) {
+          for (const item of itemsWithProducts) {
+            await tx.product.update({
+              where: { id: item.productId },
+              data: { stock: { increment: item.quantity } },
+            });
+          }
         }
       }
 

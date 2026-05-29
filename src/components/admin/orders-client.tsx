@@ -34,15 +34,31 @@ const STATUS_ACTIONS: Record<
     { label: "Ship", status: "SHIPPED" },
     { label: "Cancel", status: "CANCELLED", variant: "destructive" },
   ],
-  SHIPPED: [{ label: "Deliver", status: "DELIVERED" }],
-  DELIVERED: [],
-  CANCELLED: [],
+  SHIPPED: [
+    { label: "Deliver", status: "DELIVERED" },
+    { label: "Cancel", status: "CANCELLED", variant: "destructive" },
+  ],
+  DELIVERED: [
+    { label: "Cancel", status: "CANCELLED", variant: "destructive" },
+  ],
+  CANCELLED: [{ label: "Reopen", status: "PENDING", variant: "outline" }],
+};
+
+type ShippingAddress = {
+  name?: string | null;
+  address?: string | null;
+  city?: string | null;
+  postalCode?: string | null;
+  phone?: string | null;
+  email?: string | null;
 };
 
 type OrderItem = {
   id: string;
   quantity: number;
   price: number;
+  size?: string | null;
+  color?: string | null;
   product: {
     id: string;
     name: string;
@@ -58,6 +74,7 @@ type Order = {
   total: number;
   createdAt: string;
   user: { name: string | null; email: string | null } | null;
+  shippingAddress?: ShippingAddress | null;
   items: OrderItem[];
 };
 
@@ -139,36 +156,82 @@ export function AdminOrdersClient({ orders }: AdminOrdersClientProps) {
                         <DialogHeader>
                           <DialogTitle>Order #{order.id}</DialogTitle>
                         </DialogHeader>
-                        <div className="space-y-3">
-                          {order.items.map((item) => {
-                            const image =
-                              item.product.featuredImage?.url ||
-                              item.product.images[0]?.url ||
-                              "https://placehold.co/600x800/png?text=Product";
-                            return (
-                              <div key={item.id} className="flex items-center gap-3">
-                                <div className="relative h-12 w-10 overflow-hidden rounded-lg">
-                                  <Image
-                                    src={image}
-                                    alt={item.product.name}
-                                    fill
-                                    className="object-cover"
-                                  />
-                                </div>
-                                <div className="flex-1">
-                                  <p className="text-sm font-medium">
-                                    {item.product.name}
+                        <div className="space-y-4">
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            <div className="rounded-xl border border-border p-3">
+                              <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+                                Customer
+                              </p>
+                              <p className="mt-2 text-sm font-semibold">
+                                {order.shippingAddress?.name ||
+                                  order.user?.name ||
+                                  "Guest"}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {order.shippingAddress?.email ||
+                                  order.user?.email ||
+                                  order.email ||
+                                  "No email"}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {order.shippingAddress?.phone || "No phone"}
+                              </p>
+                            </div>
+                            <div className="rounded-xl border border-border p-3">
+                              <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+                                Shipping
+                              </p>
+                              <p className="mt-2 text-sm font-semibold">
+                                {order.shippingAddress?.address || "No address"}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {[
+                                  order.shippingAddress?.city,
+                                  order.shippingAddress?.postalCode,
+                                ]
+                                  .filter(Boolean)
+                                  .join(", ") || "-"}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="space-y-3">
+                            {order.items.map((item) => {
+                              const image =
+                                item.product.featuredImage?.url ||
+                                item.product.images[0]?.url ||
+                                "https://placehold.co/600x800/png?text=Product";
+                              const detailParts = [
+                                item.size ? `Size ${item.size}` : null,
+                                item.color ? `Color ${item.color}` : null,
+                              ].filter(Boolean);
+                              return (
+                                <div key={item.id} className="flex items-center gap-3">
+                                  <div className="relative h-12 w-10 overflow-hidden rounded-lg">
+                                    <Image
+                                      src={image}
+                                      alt={item.product.name}
+                                      fill
+                                      className="object-cover"
+                                    />
+                                  </div>
+                                  <div className="flex-1">
+                                    <p className="text-sm font-medium">
+                                      {item.product.name}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                      Qty {item.quantity}
+                                      {detailParts.length > 0
+                                        ? ` • ${detailParts.join(" • ")}`
+                                        : ""}
+                                    </p>
+                                  </div>
+                                  <p className="text-sm font-semibold">
+                                    {formatCurrency(item.price * item.quantity)}
                                   </p>
-                                  <p className="text-xs text-muted-foreground">
-                                    Qty {item.quantity}
-                                  </p>
                                 </div>
-                                <p className="text-sm font-semibold">
-                                  {formatCurrency(item.price * item.quantity)}
-                                </p>
-                              </div>
-                            );
-                          })}
+                              );
+                            })}
+                          </div>
                         </div>
                       </DialogContent>
                     </Dialog>

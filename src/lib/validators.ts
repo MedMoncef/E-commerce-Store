@@ -64,6 +64,8 @@ export const orderCreateSchema = z.object({
       z.object({
         productId: z.string().min(1),
         quantity: z.number().int().positive(),
+        size: z.string().min(1).optional(),
+        color: z.string().min(1).optional(),
       })
     )
     .min(1),

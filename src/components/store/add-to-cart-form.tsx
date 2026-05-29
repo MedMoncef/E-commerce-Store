@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -31,8 +31,28 @@ export function AddToCartForm({ product }: AddToCartFormProps) {
   const [size, setSize] = useState<string | undefined>();
   const [color, setColor] = useState<string | undefined>();
   const [message, setMessage] = useState<string | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+  const toastTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const canOrder = product.stock > 0;
+
+  useEffect(() => {
+    return () => {
+      if (toastTimeout.current) {
+        clearTimeout(toastTimeout.current);
+      }
+    };
+  }, []);
+
+  const showToast = (text: string) => {
+    setToast(text);
+    if (toastTimeout.current) {
+      clearTimeout(toastTimeout.current);
+    }
+    toastTimeout.current = setTimeout(() => {
+      setToast(null);
+    }, 2200);
+  };
 
   const handleAdd = () => {
     setMessage(null);
@@ -58,7 +78,8 @@ export function AddToCartForm({ product }: AddToCartFormProps) {
       color,
     });
 
-    setMessage("Added to cart.");
+    setMessage(null);
+    showToast("Added to cart.");
   };
 
   return (
@@ -120,6 +141,16 @@ export function AddToCartForm({ product }: AddToCartFormProps) {
       <Button className="w-full" onClick={handleAdd} disabled={!canOrder}>
         Add to cart
       </Button>
+
+      {toast ? (
+        <div
+          className="fixed bottom-6 right-6 z-50 rounded-full border border-border bg-card px-4 py-2 text-sm shadow-lg"
+          role="status"
+          aria-live="polite"
+        >
+          {toast}
+        </div>
+      ) : null}
     </div>
   );
 }
