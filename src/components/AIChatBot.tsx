@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useChat } from "@ai-sdk/react";
 import ReactMarkdown from "react-markdown";
@@ -74,7 +73,7 @@ export function AIChatBot() {
   >(null);
   const [collapsedHeight, setCollapsedHeight] = useState(56);
   const router = useRouter();
-  const { messages, input, handleInputChange, handleSubmit, isLoading } =
+  const { messages, input, handleInputChange, handleSubmit, isLoading, stop } =
     useChat({
       api: "/api/chat",
     });
@@ -236,22 +235,30 @@ export function AIChatBot() {
                                 if (!href) {
                                   return <span>{children}</span>;
                                 }
-                                if (href.startsWith("/")) {
-                                  return (
-                                    <Link
-                                      href={href}
-                                      className="font-medium text-sky-600 underline underline-offset-2 hover:text-sky-500"
-                                    >
-                                      {children}
-                                    </Link>
-                                  );
-                                }
+                                const isInternal = href.startsWith("/");
                                 return (
                                   <a
                                     href={href}
-                                    target="_blank"
-                                    rel="noreferrer"
+                                    target={isInternal ? undefined : "_blank"}
+                                    rel={isInternal ? undefined : "noreferrer"}
                                     className="font-medium text-sky-600 underline underline-offset-2 hover:text-sky-500"
+                                    onClick={(event) => {
+                                      if (!isInternal) {
+                                        return;
+                                      }
+                                      if (
+                                        event.button !== 0 ||
+                                        event.metaKey ||
+                                        event.ctrlKey ||
+                                        event.shiftKey ||
+                                        event.altKey
+                                      ) {
+                                        return;
+                                      }
+                                      event.preventDefault();
+                                      event.stopPropagation();
+                                      router.push(href);
+                                    }}
                                   >
                                     {children}
                                   </a>
@@ -340,13 +347,20 @@ export function AIChatBot() {
                 onChange={handleInputChange}
                 className="h-10"
               />
-              <Button
-                type="submit"
-                size="sm"
-                disabled={isLoading || !input.trim()}
-              >
-                Send
-              </Button>
+              {isLoading ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="destructive"
+                  onClick={stop}
+                >
+                  Stop
+                </Button>
+              ) : (
+                <Button type="submit" size="sm" disabled={!input.trim()}>
+                  Send
+                </Button>
+              )}
             </form>
           </>
         )}
