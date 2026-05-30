@@ -65,13 +65,37 @@ const parseAssistantContent = (content: string) => {
 export function AIChatBot() {
   const dragControls = useDragControls();
   const constraintsRef = useRef<HTMLDivElement | null>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const headerRef = useRef<HTMLDivElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [panelSize, setPanelSize] = useState<
+    { width: number; height: number } | null
+  >(null);
+  const [collapsedHeight, setCollapsedHeight] = useState(56);
   const router = useRouter();
   const { messages, input, handleInputChange, handleSubmit, isLoading } =
     useChat({
       api: "/api/chat",
     });
+
+  const syncPanelSize = () => {
+    if (!panelRef.current) {
+      return;
+    }
+    const { width, height } = panelRef.current.getBoundingClientRect();
+    setPanelSize({ width, height });
+  };
+
+  const handleToggleCollapse = () => {
+    if (!isCollapsed) {
+      syncPanelSize();
+      if (headerRef.current) {
+        setCollapsedHeight(headerRef.current.getBoundingClientRect().height);
+      }
+    }
+    setIsCollapsed((prev) => !prev);
+  };
 
   useEffect(() => {
     if (!scrollRef.current) {
@@ -86,16 +110,36 @@ export function AIChatBot() {
   return (
     <div ref={constraintsRef} className="fixed inset-0 z-50 pointer-events-none">
       <motion.div
+        ref={panelRef}
         drag
         dragControls={dragControls}
         dragListener={false}
         dragMomentum={false}
         dragConstraints={constraintsRef}
-        className={`pointer-events-auto absolute bottom-6 right-6 flex w-80 min-w-[16rem] max-w-[calc(100vw-2rem)] max-h-[calc(100vh-3rem)] flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-xl resize ${
-          isCollapsed ? "min-h-0" : "min-h-[16rem]"
+        className={`pointer-events-auto absolute bottom-6 right-6 flex w-80 min-w-[16rem] max-w-[calc(100vw-2rem)] max-h-[calc(100vh-3rem)] flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-xl ${
+          isCollapsed ? "min-h-0 resize-none" : "min-h-[16rem] resize"
         }`}
+        style={
+          isCollapsed
+            ? {
+                height: `${collapsedHeight}px`,
+                width: panelSize ? `${panelSize.width}px` : undefined,
+              }
+            : panelSize
+              ? {
+                  height: `${panelSize.height}px`,
+                  width: `${panelSize.width}px`,
+                }
+              : undefined
+        }
+        onPointerUp={() => {
+          if (!isCollapsed) {
+            syncPanelSize();
+          }
+        }}
       >
         <div
+          ref={headerRef}
           className="flex items-center justify-between bg-muted/60 px-4 py-3 text-sm font-semibold text-foreground cursor-grab active:cursor-grabbing"
           onPointerDown={(event) => dragControls.start(event)}
         >
@@ -108,7 +152,7 @@ export function AIChatBot() {
             size="icon"
             variant="ghost"
             aria-label={isCollapsed ? "Expand chat" : "Collapse chat"}
-            onClick={() => setIsCollapsed((prev) => !prev)}
+            onClick={handleToggleCollapse}
             onPointerDown={(event) => event.stopPropagation()}
           >
             {isCollapsed ? (
