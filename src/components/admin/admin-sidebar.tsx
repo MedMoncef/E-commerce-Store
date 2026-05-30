@@ -23,7 +23,6 @@ import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/", label: "Storefront", icon: Home },
   { href: "/admin/products", label: "Products", icon: Package },
   { href: "/admin/brands", label: "Brands", icon: Tags },
   { href: "/admin/categories", label: "Categories", icon: Layers },
@@ -76,13 +75,26 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
         })}
       </nav>
 
-      <Button
-        variant="outline"
-        onClick={() => signOut({ callbackUrl: "/admin/login" })}
-      >
-        <LogOut className="mr-2 h-4 w-4" />
-        Sign out
-      </Button>
+      <div className="space-y-2">
+        <Button
+          asChild
+          variant="outline"
+          className="w-full justify-start border-primary/30 text-primary hover:bg-primary/10"
+        >
+          <Link href="/">
+            <Home className="mr-2 h-4 w-4" />
+            Storefront
+          </Link>
+        </Button>
+        <Button
+          variant="outline"
+          className="w-full justify-start"
+          onClick={() => signOut({ callbackUrl: "/admin/login" })}
+        >
+          <LogOut className="mr-2 h-4 w-4" />
+          Sign out
+        </Button>
+      </div>
     </aside>
   );
 }
