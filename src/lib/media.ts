@@ -4,19 +4,19 @@ import { mkdir } from "fs/promises";
 
 import { slugify } from "@/lib/slug";
 
-const DEFAULT_UPLOAD_DIR = "public/uploads";
+const UPLOAD_ROOT = path.join(
+  /* turbopackIgnore: true */ process.cwd(),
+  "public",
+  "uploads"
+);
 const DEFAULT_PUBLIC_BASE = "/uploads";
-
-export function getUploadDir() {
-  return process.env.MEDIA_UPLOAD_DIR || DEFAULT_UPLOAD_DIR;
-}
 
 export function getPublicBaseUrl() {
   return process.env.NEXT_PUBLIC_MEDIA_BASE_URL || DEFAULT_PUBLIC_BASE;
 }
 
 export function resolveUploadDir() {
-  return path.join(process.cwd(), getUploadDir());
+  return UPLOAD_ROOT;
 }
 
 export function buildPublicUrl(filename: string) {
@@ -37,5 +37,5 @@ export function makeSafeFilename(originalName: string) {
 }
 
 export function resolveUploadPath(filename: string) {
-  return path.join(resolveUploadDir(), filename);
+  return path.join(UPLOAD_ROOT, filename);
 }

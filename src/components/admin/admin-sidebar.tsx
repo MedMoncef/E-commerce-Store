@@ -13,6 +13,7 @@ import {
   ShoppingCart,
   Mail,
   Users,
+  Home,
   LogOut,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
@@ -22,6 +23,7 @@ import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/", label: "Storefront", icon: Home },
   { href: "/admin/products", label: "Products", icon: Package },
   { href: "/admin/brands", label: "Brands", icon: Tags },
   { href: "/admin/categories", label: "Categories", icon: Layers },
