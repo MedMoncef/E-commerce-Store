@@ -123,6 +123,8 @@ export function AdminProductsClient({
   const [confirmTitle, setConfirmTitle] = useState("Delete image?");
   const [confirmDescription, setConfirmDescription] = useState("");
   const [confirmTargetIds, setConfirmTargetIds] = useState<string[]>([]);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("ALL");
 
   const brandOptions = useMemo(
     () => mergeOptions(brands, createdBrands),
@@ -140,6 +142,30 @@ export function AdminProductsClient({
     () => mergeOptions(colors, createdColors),
     [colors, createdColors]
   );
+
+  const filteredProducts = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return products.filter((product) => {
+      const matchesStatus =
+        statusFilter === "ALL" ||
+        (statusFilter === "ACTIVE" ? product.isActive : !product.isActive);
+      if (!matchesStatus) {
+        return false;
+      }
+      if (!term) {
+        return true;
+      }
+      const haystack = [
+        product.name,
+        product.slug,
+        product.brand?.name ?? "",
+        product.category?.name ?? "",
+      ]
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(term);
+    });
+  }, [products, search, statusFilter]);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -952,6 +978,47 @@ export function AdminProductsClient({
         </Dialog>
       </div>
 
+      <div className="rounded-2xl border border-border bg-card p-4">
+        <div className="flex flex-wrap items-end gap-4">
+          <div className="flex-1 min-w-55">
+            <Label
+              htmlFor="product-search"
+              className="text-xs uppercase tracking-[0.2em] text-muted-foreground"
+            >
+              Search
+            </Label>
+            <Input
+              id="product-search"
+              type="search"
+              placeholder="Search products"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+            />
+          </div>
+          <div className="min-w-45 shrink-0">
+            <Label
+              htmlFor="product-status"
+              className="text-xs uppercase tracking-[0.2em] text-muted-foreground"
+            >
+              Status
+            </Label>
+            <select
+              id="product-status"
+              className="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm"
+              value={statusFilter}
+              onChange={(event) => setStatusFilter(event.target.value)}
+            >
+              <option value="ALL">All</option>
+              <option value="ACTIVE">Active</option>
+              <option value="HIDDEN">Hidden</option>
+            </select>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {filteredProducts.length} result{filteredProducts.length === 1 ? "" : "s"}
+          </p>
+        </div>
+      </div>
+
       <div className="rounded-2xl border border-border bg-card">
         <Table>
           <TableHeader>
@@ -966,43 +1033,54 @@ export function AdminProductsClient({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {products.map((product) => (
-              <TableRow key={product.id}>
-                <TableCell className="font-medium">{product.name}</TableCell>
-                <TableCell>{product.brand?.name || "-"}</TableCell>
-                <TableCell>{product.category?.name || "-"}</TableCell>
-                <TableCell>{formatCurrency(product.price)}</TableCell>
-                <TableCell>{product.stock}</TableCell>
-                <TableCell>
-                  {product.isActive ? "Active" : "Hidden"}
-                </TableCell>
-                <TableCell>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setActiveProduct(product);
-                        setFeaturedImage(product.featuredImage);
-                        setGalleryImages(product.images);
-                        setPendingDeleteMediaIds([]);
-                        setError(null);
-                        setOpen(true);
-                      }}
-                    >
-                      Edit
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDelete(product.id)}
-                    >
-                      Delete
-                    </Button>
-                  </div>
+            {filteredProducts.length === 0 ? (
+              <TableRow>
+                <TableCell
+                  colSpan={7}
+                  className="py-10 text-center text-sm text-muted-foreground"
+                >
+                  No products match your search.
                 </TableCell>
               </TableRow>
-            ))}
+            ) : (
+              filteredProducts.map((product) => (
+                <TableRow key={product.id}>
+                  <TableCell className="font-medium">{product.name}</TableCell>
+                  <TableCell>{product.brand?.name || "-"}</TableCell>
+                  <TableCell>{product.category?.name || "-"}</TableCell>
+                  <TableCell>{formatCurrency(product.price)}</TableCell>
+                  <TableCell>{product.stock}</TableCell>
+                  <TableCell>
+                    {product.isActive ? "Active" : "Hidden"}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setActiveProduct(product);
+                          setFeaturedImage(product.featuredImage);
+                          setGalleryImages(product.images);
+                          setPendingDeleteMediaIds([]);
+                          setError(null);
+                          setOpen(true);
+                        }}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDelete(product.id)}
+                      >
+                        Delete
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </div>

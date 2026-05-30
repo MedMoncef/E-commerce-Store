@@ -25,14 +25,18 @@ export async function GET(request: NextRequest) {
       ? parsedDays * 24
       : envHours;
 
-  const limit = limitParam ? Number(limitParam) : undefined;
+  let limit: number | undefined;
 
   if (Number.isNaN(hours) || hours < 0) {
     return jsonError("Invalid hours value.");
   }
 
-  if (limitParam && (Number.isNaN(limit) || limit < 1)) {
-    return jsonError("Invalid limit value.");
+  if (limitParam) {
+    const parsedLimit = Number(limitParam);
+    if (Number.isNaN(parsedLimit) || parsedLimit < 1) {
+      return jsonError("Invalid limit value.");
+    }
+    limit = parsedLimit;
   }
 
   const cutoff = new Date(Date.now() - hours * 60 * 60 * 1000);

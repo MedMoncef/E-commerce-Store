@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -55,6 +55,23 @@ export function AdminUsersClient({ users }: AdminUsersClientProps) {
   const [activeUser, setActiveUser] = useState<AdminUsersClientProps["users"][number] | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState("ALL");
+
+  const filteredUsers = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return users.filter((user) => {
+      const matchesRole = roleFilter === "ALL" || user.role === roleFilter;
+      if (!matchesRole) {
+        return false;
+      }
+      if (!term) {
+        return true;
+      }
+      const details = [user.name, user.email].join(" ").toLowerCase();
+      return details.includes(term);
+    });
+  }, [users, search, roleFilter]);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -192,6 +209,47 @@ export function AdminUsersClient({ users }: AdminUsersClientProps) {
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 
+      <div className="rounded-2xl border border-border bg-card p-4">
+        <div className="flex flex-wrap items-end gap-4">
+          <div className="min-w-55 flex-1">
+            <Label
+              htmlFor="user-search"
+              className="text-xs uppercase tracking-[0.2em] text-muted-foreground"
+            >
+              Search
+            </Label>
+            <Input
+              id="user-search"
+              type="search"
+              placeholder="Search users"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+            />
+          </div>
+          <div className="min-w-45">
+            <Label
+              htmlFor="user-role"
+              className="text-xs uppercase tracking-[0.2em] text-muted-foreground"
+            >
+              Role
+            </Label>
+            <select
+              id="user-role"
+              className="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm"
+              value={roleFilter}
+              onChange={(event) => setRoleFilter(event.target.value)}
+            >
+              <option value="ALL">All</option>
+              <option value="USER">User</option>
+              <option value="ADMIN">Admin</option>
+            </select>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {filteredUsers.length} result{filteredUsers.length === 1 ? "" : "s"}
+          </p>
+        </div>
+      </div>
+
       <div className="rounded-2xl border border-border bg-card">
         <Table>
           <TableHeader>
@@ -204,41 +262,52 @@ export function AdminUsersClient({ users }: AdminUsersClientProps) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {users.map((user) => (
-              <TableRow key={user.id}>
-                <TableCell className="font-medium">{user.name}</TableCell>
-                <TableCell>{user.email}</TableCell>
-                <TableCell>
-                  <Badge variant={user.role === "ADMIN" ? "default" : "outline"}>
-                    {user.role}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  {new Date(user.createdAt).toLocaleDateString()}
-                </TableCell>
-                <TableCell>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setActiveUser(user);
-                        setOpen(true);
-                      }}
-                    >
-                      Edit
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDelete(user.id)}
-                    >
-                      Delete
-                    </Button>
-                  </div>
+            {filteredUsers.length === 0 ? (
+              <TableRow>
+                <TableCell
+                  colSpan={5}
+                  className="py-10 text-center text-sm text-muted-foreground"
+                >
+                  No users match your filters.
                 </TableCell>
               </TableRow>
-            ))}
+            ) : (
+              filteredUsers.map((user) => (
+                <TableRow key={user.id}>
+                  <TableCell className="font-medium">{user.name}</TableCell>
+                  <TableCell>{user.email}</TableCell>
+                  <TableCell>
+                    <Badge variant={user.role === "ADMIN" ? "default" : "outline"}>
+                      {user.role}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    {new Date(user.createdAt).toLocaleDateString()}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setActiveUser(user);
+                          setOpen(true);
+                        }}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDelete(user.id)}
+                      >
+                        Delete
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -58,6 +58,19 @@ export function AdminBrandsClient({ brands }: AdminBrandsClientProps) {
   const [pendingDeleteImageIds, setPendingDeleteImageIds] = useState<string[]>([]);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmTargetId, setConfirmTargetId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+
+  const filteredBrands = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    if (!term) {
+      return brands;
+    }
+    return brands.filter((brand) =>
+      [brand.name, brand.slug].some((value) =>
+        value.toLowerCase().includes(term)
+      )
+    );
+  }, [brands, search]);
 
   const attemptDeleteImage = async (imageId: string) => {
     const response = await fetch(`/api/admin/media/${imageId}`, {
@@ -289,6 +302,29 @@ export function AdminBrandsClient({ brands }: AdminBrandsClientProps) {
         </Dialog>
       </div>
 
+      <div className="rounded-2xl border border-border bg-card p-4">
+        <div className="flex flex-wrap items-end gap-4">
+          <div className="min-w-55 flex-1">
+            <Label
+              htmlFor="brand-search"
+              className="text-xs uppercase tracking-[0.2em] text-muted-foreground"
+            >
+              Search
+            </Label>
+            <Input
+              id="brand-search"
+              type="search"
+              placeholder="Search brands"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+            />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {filteredBrands.length} result{filteredBrands.length === 1 ? "" : "s"}
+          </p>
+        </div>
+      </div>
+
       <div className="rounded-2xl border border-border bg-card">
         <Table>
           <TableHeader>
@@ -299,33 +335,44 @@ export function AdminBrandsClient({ brands }: AdminBrandsClientProps) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {brands.map((brand) => (
-              <TableRow key={brand.id}>
-                <TableCell className="font-medium">{brand.name}</TableCell>
-                <TableCell>{brand.slug}</TableCell>
-                <TableCell>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setActiveBrand(brand);
-                        setOpen(true);
-                      }}
-                    >
-                      Edit
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDelete(brand.id)}
-                    >
-                      Delete
-                    </Button>
-                  </div>
+            {filteredBrands.length === 0 ? (
+              <TableRow>
+                <TableCell
+                  colSpan={3}
+                  className="py-10 text-center text-sm text-muted-foreground"
+                >
+                  No brands match your search.
                 </TableCell>
               </TableRow>
-            ))}
+            ) : (
+              filteredBrands.map((brand) => (
+                <TableRow key={brand.id}>
+                  <TableCell className="font-medium">{brand.name}</TableCell>
+                  <TableCell>{brand.slug}</TableCell>
+                  <TableCell>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setActiveBrand(brand);
+                          setOpen(true);
+                        }}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDelete(brand.id)}
+                      >
+                        Delete
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </div>

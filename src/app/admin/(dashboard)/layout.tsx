@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { AdminSidebar } from "@/components/admin/admin-sidebar";
+import { AIChatBot } from "@/components/AIChatBot";
 import { auth } from "@/lib/auth";
 
 export default async function AdminLayout({
@@ -22,6 +23,7 @@ export default async function AdminLayout({
           <div className="mx-auto w-full max-w-6xl">{children}</div>
         </main>
       </div>
+      <AIChatBot />
     </div>
   );
 }

@@ -9,8 +9,8 @@ import {
   resolveUploadPath,
 } from "@/lib/media";
 
-function isFile(value: FormDataEntryValue): value is File {
-  return typeof value === "object" && "arrayBuffer" in value;
+function isFile(value: FormDataEntryValue | null): value is File {
+  return value !== null && typeof value === "object" && "arrayBuffer" in value;
 }
 
 export async function GET() {
@@ -43,7 +43,8 @@ export async function POST(request: Request) {
 
   const formData = await request.formData();
   const files = formData.getAll("files");
-  const entries = files.length > 0 ? files : [formData.get("file")].filter(Boolean);
+  const entries =
+    files.length > 0 ? files : [formData.get("file")].filter((item) => item !== null);
   const uploads = entries.filter(isFile);
 
   if (uploads.length === 0) {

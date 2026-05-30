@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -44,6 +44,19 @@ export function AdminSizesClient({ sizes }: AdminSizesClientProps) {
   const [activeSize, setActiveSize] = useState<AdminSizesClientProps["sizes"][number] | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+
+  const filteredSizes = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    if (!term) {
+      return sizes;
+    }
+    return sizes.filter((size) =>
+      [size.name, size.slug].some((value) =>
+        value.toLowerCase().includes(term)
+      )
+    );
+  }, [sizes, search]);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -144,6 +157,29 @@ export function AdminSizesClient({ sizes }: AdminSizesClientProps) {
         </Dialog>
       </div>
 
+      <div className="rounded-2xl border border-border bg-card p-4">
+        <div className="flex flex-wrap items-end gap-4">
+          <div className="min-w-55 flex-1">
+            <Label
+              htmlFor="size-search"
+              className="text-xs uppercase tracking-[0.2em] text-muted-foreground"
+            >
+              Search
+            </Label>
+            <Input
+              id="size-search"
+              type="search"
+              placeholder="Search sizes"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+            />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {filteredSizes.length} result{filteredSizes.length === 1 ? "" : "s"}
+          </p>
+        </div>
+      </div>
+
       <div className="rounded-2xl border border-border bg-card">
         <Table>
           <TableHeader>
@@ -154,33 +190,44 @@ export function AdminSizesClient({ sizes }: AdminSizesClientProps) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {sizes.map((size) => (
-              <TableRow key={size.id}>
-                <TableCell className="font-medium">{size.name}</TableCell>
-                <TableCell>{size.slug}</TableCell>
-                <TableCell>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setActiveSize(size);
-                        setOpen(true);
-                      }}
-                    >
-                      Edit
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDelete(size.id)}
-                    >
-                      Delete
-                    </Button>
-                  </div>
+            {filteredSizes.length === 0 ? (
+              <TableRow>
+                <TableCell
+                  colSpan={3}
+                  className="py-10 text-center text-sm text-muted-foreground"
+                >
+                  No sizes match your search.
                 </TableCell>
               </TableRow>
-            ))}
+            ) : (
+              filteredSizes.map((size) => (
+                <TableRow key={size.id}>
+                  <TableCell className="font-medium">{size.name}</TableCell>
+                  <TableCell>{size.slug}</TableCell>
+                  <TableCell>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setActiveSize(size);
+                          setOpen(true);
+                        }}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDelete(size.id)}
+                      >
+                        Delete
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </div>

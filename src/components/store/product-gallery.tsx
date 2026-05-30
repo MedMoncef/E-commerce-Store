@@ -42,6 +42,7 @@ export function ProductGallery({
     startX: 0,
     scrollLeft: 0,
     moved: false,
+    captured: false,
   });
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
@@ -95,12 +96,12 @@ export function ProductGallery({
     if (!node) {
       return;
     }
-    node.setPointerCapture(event.pointerId);
     dragState.current = {
       isDragging: true,
       startX: event.clientX,
       scrollLeft: node.scrollLeft,
       moved: false,
+      captured: false,
     };
   };
 
@@ -116,6 +117,10 @@ export function ProductGallery({
     const delta = event.clientX - state.startX;
     if (Math.abs(delta) > 4) {
       state.moved = true;
+      if (!state.captured) {
+        node.setPointerCapture(event.pointerId);
+        state.captured = true;
+      }
     }
     node.scrollLeft = state.scrollLeft - delta;
   };
@@ -128,6 +133,7 @@ export function ProductGallery({
     dragState.current.isDragging = false;
     if (node?.hasPointerCapture(event.pointerId)) {
       node.releasePointerCapture(event.pointerId);
+      dragState.current.captured = false;
     }
     if (dragState.current.moved) {
       window.setTimeout(() => {

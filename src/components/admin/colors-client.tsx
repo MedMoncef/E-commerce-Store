@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -44,6 +44,19 @@ export function AdminColorsClient({ colors }: AdminColorsClientProps) {
   const [activeColor, setActiveColor] = useState<AdminColorsClientProps["colors"][number] | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+
+  const filteredColors = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    if (!term) {
+      return colors;
+    }
+    return colors.filter((color) =>
+      [color.name, color.slug].some((value) =>
+        value.toLowerCase().includes(term)
+      )
+    );
+  }, [colors, search]);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -144,6 +157,29 @@ export function AdminColorsClient({ colors }: AdminColorsClientProps) {
         </Dialog>
       </div>
 
+      <div className="rounded-2xl border border-border bg-card p-4">
+        <div className="flex flex-wrap items-end gap-4">
+          <div className="flex-1 min-w-55">
+            <Label
+              htmlFor="color-search"
+              className="text-xs uppercase tracking-[0.2em] text-muted-foreground"
+            >
+              Search
+            </Label>
+            <Input
+              id="color-search"
+              type="search"
+              placeholder="Search colors"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+            />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {filteredColors.length} result{filteredColors.length === 1 ? "" : "s"}
+          </p>
+        </div>
+      </div>
+
       <div className="rounded-2xl border border-border bg-card">
         <Table>
           <TableHeader>
@@ -154,33 +190,44 @@ export function AdminColorsClient({ colors }: AdminColorsClientProps) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {colors.map((color) => (
-              <TableRow key={color.id}>
-                <TableCell className="font-medium">{color.name}</TableCell>
-                <TableCell>{color.slug}</TableCell>
-                <TableCell>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setActiveColor(color);
-                        setOpen(true);
-                      }}
-                    >
-                      Edit
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDelete(color.id)}
-                    >
-                      Delete
-                    </Button>
-                  </div>
+            {filteredColors.length === 0 ? (
+              <TableRow>
+                <TableCell
+                  colSpan={3}
+                  className="py-10 text-center text-sm text-muted-foreground"
+                >
+                  No colors match your search.
                 </TableCell>
               </TableRow>
-            ))}
+            ) : (
+              filteredColors.map((color) => (
+                <TableRow key={color.id}>
+                  <TableCell className="font-medium">{color.name}</TableCell>
+                  <TableCell>{color.slug}</TableCell>
+                  <TableCell>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setActiveColor(color);
+                          setOpen(true);
+                        }}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDelete(color.id)}
+                      >
+                        Delete
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </div>

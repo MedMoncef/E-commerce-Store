@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -60,6 +60,19 @@ export function AdminCategoriesClient({
   const [pendingDeleteImageIds, setPendingDeleteImageIds] = useState<string[]>([]);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmTargetId, setConfirmTargetId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+
+  const filteredCategories = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    if (!term) {
+      return categories;
+    }
+    return categories.filter((category) =>
+      [category.name, category.slug].some((value) =>
+        value.toLowerCase().includes(term)
+      )
+    );
+  }, [categories, search]);
 
   const attemptDeleteImage = async (imageId: string) => {
     const response = await fetch(`/api/admin/media/${imageId}`, {
@@ -293,6 +306,29 @@ export function AdminCategoriesClient({
         </Dialog>
       </div>
 
+      <div className="rounded-2xl border border-border bg-card p-4">
+        <div className="flex flex-wrap items-end gap-4">
+          <div className="min-w-55 flex-1">
+            <Label
+              htmlFor="category-search"
+              className="text-xs uppercase tracking-[0.2em] text-muted-foreground"
+            >
+              Search
+            </Label>
+            <Input
+              id="category-search"
+              type="search"
+              placeholder="Search categories"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+            />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {filteredCategories.length} result{filteredCategories.length === 1 ? "" : "s"}
+          </p>
+        </div>
+      </div>
+
       <div className="rounded-2xl border border-border bg-card">
         <Table>
           <TableHeader>
@@ -303,33 +339,46 @@ export function AdminCategoriesClient({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {categories.map((category) => (
-              <TableRow key={category.id}>
-                <TableCell className="font-medium">{category.name}</TableCell>
-                <TableCell>{category.slug}</TableCell>
-                <TableCell>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setActiveCategory(category);
-                        setOpen(true);
-                      }}
-                    >
-                      Edit
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDelete(category.id)}
-                    >
-                      Delete
-                    </Button>
-                  </div>
+            {filteredCategories.length === 0 ? (
+              <TableRow>
+                <TableCell
+                  colSpan={3}
+                  className="py-10 text-center text-sm text-muted-foreground"
+                >
+                  No categories match your search.
                 </TableCell>
               </TableRow>
-            ))}
+            ) : (
+              filteredCategories.map((category) => (
+                <TableRow key={category.id}>
+                  <TableCell className="font-medium">
+                    {category.name}
+                  </TableCell>
+                  <TableCell>{category.slug}</TableCell>
+                  <TableCell>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setActiveCategory(category);
+                          setOpen(true);
+                        }}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDelete(category.id)}
+                      >
+                        Delete
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </div>
