@@ -1,5 +1,6 @@
 import { streamText } from "ai";
 import type { LanguageModelV1 } from "@ai-sdk/provider";
+import { convert } from "html-to-text";
 import { createOllama } from "ollama-ai-provider";
 
 const ollama = createOllama({
@@ -36,153 +37,6 @@ const isPrivateHost = (hostname: string) => {
   return false;
 };
 
-const getTitle = (html: string) => {
-  const match = html.match(/<title[^>]*>([^<]*)<\/title>/i);
-  return match?.[1]?.trim() || null;
-};
-
-const getMetaContent = (
-  html: string,
-  attrName: "name" | "property",
-  attrValue: string
-) => {
-  const tagMatch = html.match(
-    new RegExp(`<meta[^>]*${attrName}=["']${attrValue}["'][^>]*>`, "i")
-  );
-  if (!tagMatch?.[0]) {
-    return null;
-  }
-  const contentMatch = tagMatch[0].match(/content=["']([^"']+)["']/i);
-  return contentMatch?.[1]?.trim() || null;
-};
-
-const parseJsonLdItems = (html: string) => {
-  const items: Record<string, unknown>[] = [];
-  const matches = html.matchAll(
-    /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi
-  );
-
-  const pushItem = (value: unknown) => {
-    if (!value) {
-      return;
-    }
-    if (Array.isArray(value)) {
-      value.forEach(pushItem);
-      return;
-    }
-    if (typeof value === "object") {
-      const record = value as Record<string, unknown>;
-      const graph = record["@graph"];
-      if (Array.isArray(graph)) {
-        graph.forEach(pushItem);
-        return;
-      }
-      items.push(record);
-    }
-  };
-
-  for (const match of matches) {
-    const raw = match[1]?.trim();
-    if (!raw) {
-      continue;
-    }
-    try {
-      pushItem(JSON.parse(raw));
-    } catch (error) {
-      continue;
-    }
-  }
-
-  return items;
-};
-
-const findByType = (items: Record<string, unknown>[], type: string) => {
-  return (
-    items.find((item) => {
-      const itemType = item["@type"];
-      if (Array.isArray(itemType)) {
-        return itemType.includes(type);
-      }
-      return itemType === type;
-    }) || null
-  );
-};
-
-const formatUrlContext = (context: {
-  url: string;
-  error?: string | null;
-  title?: string | null;
-  description?: string | null;
-  og?: Record<string, string | null>;
-  product?: Record<string, unknown> | null;
-  organization?: Record<string, unknown> | null;
-  webpage?: Record<string, unknown> | null;
-}) => {
-  const lines: string[] = [];
-  lines.push(`URL Context (fetched from ${context.url}):`);
-
-  if (context.error) {
-    lines.push(`Note: ${context.error}`);
-    return lines.join("\n");
-  }
-
-  if (context.title) {
-    lines.push(`Title: ${context.title}`);
-  }
-  if (context.description) {
-    lines.push(`Description: ${context.description}`);
-  }
-
-  if (context.og) {
-    const ogLines = Object.entries(context.og)
-      .filter(([, value]) => value)
-      .map(([key, value]) => `${key}: ${value}`);
-    if (ogLines.length > 0) {
-      lines.push("OpenGraph:");
-      ogLines.forEach((line) => lines.push(`- ${line}`));
-    }
-  }
-
-  if (context.product) {
-    lines.push("Product:");
-    Object.entries(context.product).forEach(([key, value]) => {
-      if (value === undefined || value === null || value === "") {
-        return;
-      }
-      const formattedValue = Array.isArray(value)
-        ? value.join(", ")
-        : String(value);
-      lines.push(`- ${key}: ${formattedValue}`);
-    });
-  }
-
-  if (context.organization) {
-    lines.push("Organization:");
-    Object.entries(context.organization).forEach(([key, value]) => {
-      if (value === undefined || value === null || value === "") {
-        return;
-      }
-      lines.push(`- ${key}: ${String(value)}`);
-    });
-  }
-
-  if (context.webpage) {
-    lines.push("Page:");
-    Object.entries(context.webpage).forEach(([key, value]) => {
-      if (value === undefined || value === null || value === "") {
-        return;
-      }
-      lines.push(`- ${key}: ${String(value)}`);
-    });
-  }
-
-  const output = lines.join("\n");
-  if (output.length <= MAX_URL_CONTEXT_CHARS) {
-    return output;
-  }
-  return `${output.slice(0, MAX_URL_CONTEXT_CHARS)}\n(Truncated)`;
-};
-
 const buildUrlContext = async (input: string) => {
   const matches = input.match(URL_PATTERN);
   if (!matches?.length) {
@@ -203,10 +57,7 @@ const buildUrlContext = async (input: string) => {
   }
 
   if (isPrivateHost(parsed.hostname)) {
-    return {
-      url,
-      error: "Blocked private or local URL.",
-    };
+    return null;
   }
 
   try {
@@ -217,107 +68,34 @@ const buildUrlContext = async (input: string) => {
     });
 
     if (!response.ok) {
-      return {
-        url,
-        error: `Unable to fetch the URL (status ${response.status}).`,
-      };
+      return null;
     }
 
     const contentType = response.headers.get("content-type") || "";
     if (!contentType.includes("text/html")) {
-      return {
-        url,
-        error: "The URL did not return HTML content.",
-      };
+      return null;
     }
 
     const html = await response.text();
-    const title = getTitle(html);
-    const description =
-      getMetaContent(html, "name", "description") ||
-      getMetaContent(html, "property", "og:description");
-    const og = {
-      title: getMetaContent(html, "property", "og:title"),
-      description: getMetaContent(html, "property", "og:description"),
-      image: getMetaContent(html, "property", "og:image"),
-      siteName: getMetaContent(html, "property", "og:site_name"),
-      type: getMetaContent(html, "property", "og:type"),
-    };
+    const cleanText = convert(html, {
+      selectors: [
+        { selector: "script", format: "skip" },
+        { selector: "style", format: "skip" },
+        { selector: "nav", format: "skip" },
+        { selector: "footer", format: "skip" },
+        { selector: "a", options: { ignoreHref: true } },
+      ],
+    })
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+    const clipped =
+      cleanText.length > MAX_URL_CONTEXT_CHARS
+        ? cleanText.slice(0, MAX_URL_CONTEXT_CHARS)
+        : cleanText;
 
-    const jsonLdItems = parseJsonLdItems(html);
-    const product = findByType(jsonLdItems, "Product");
-    const organization = findByType(jsonLdItems, "Organization");
-    const webpage =
-      findByType(jsonLdItems, "WebPage") || findByType(jsonLdItems, "Article");
-
-    const formatProduct = (item: Record<string, unknown> | null) => {
-      if (!item) {
-        return null;
-      }
-      const brand = item.brand as { name?: string } | string | undefined;
-      const offers = Array.isArray(item.offers)
-        ? item.offers[0]
-        : (item.offers as Record<string, unknown> | undefined);
-      const priceSpec =
-        offers?.priceSpecification as Record<string, unknown> | undefined;
-
-      const images = Array.isArray(item.image)
-        ? item.image.slice(0, 6)
-        : item.image
-          ? [item.image]
-          : undefined;
-
-      return {
-        name: item.name,
-        description: item.description,
-        brand: typeof brand === "string" ? brand : brand?.name,
-        sku: item.sku,
-        price: offers?.price ?? priceSpec?.price,
-        priceCurrency: offers?.priceCurrency ?? priceSpec?.priceCurrency,
-        availability: offers?.availability,
-        url: item.url,
-        images,
-      };
-    };
-
-    const formatOrganization = (item: Record<string, unknown> | null) => {
-      if (!item) {
-        return null;
-      }
-      return {
-        name: item.name,
-        url: item.url,
-        description: item.description,
-        logo: item.logo,
-      };
-    };
-
-    const formatWebPage = (item: Record<string, unknown> | null) => {
-      if (!item) {
-        return null;
-      }
-      return {
-        name: item.name,
-        headline: item.headline,
-        description: item.description,
-        url: item.url,
-      };
-    };
-
-    return {
-      url,
-      title,
-      description,
-      og,
-      product: formatProduct(product),
-      organization: formatOrganization(organization),
-      webpage: formatWebPage(webpage),
-    };
+    return `[EXTRACTED WEBSITE DATA FROM URL]:\n${clipped}`;
   } catch (error) {
-    return {
-      url,
-      error: "Failed to fetch or parse the URL content.",
-    };
+    return null;
   }
 };
 
@@ -556,12 +334,11 @@ export async function POST(request: Request) {
   if (lastMessage?.role === "user" && typeof lastMessage.content === "string") {
     const urlContext = await buildUrlContext(lastMessage.content);
     if (urlContext) {
-      const contextText = formatUrlContext(urlContext);
       enrichedMessages = messages.map((message, index) =>
         index === messages.length - 1
           ? {
               ...message,
-              content: `${message.content}\n\n${contextText}`,
+              content: `${message.content}\n\n${urlContext}`,
             }
           : message
       );

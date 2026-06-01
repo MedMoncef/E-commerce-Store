@@ -17,10 +17,12 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   const product = await getProductBySlug(slug);
-  const title = product?.name || "Product";
-  const description = product
-    ? product.description.slice(0, 160)
-    : "Product details and pricing.";
+  const title = product?.seoTitle || product?.name || "Product";
+  const description = product?.seoDescription
+    ? product.seoDescription
+    : product
+      ? product.description.slice(0, 160)
+      : "Product details and pricing.";
 
   return buildMetadata({
     title,

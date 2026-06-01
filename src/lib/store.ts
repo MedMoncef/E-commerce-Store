@@ -46,6 +46,9 @@ export type ProductSummary = {
 
 export type ProductDetail = ProductSummary & {
   description: string;
+  seoTitle: string | null;
+  seoDescription: string | null;
+  seoKeywords: string | null;
   sizes: SizeSummary[];
   colors: ColorSummary[];
   stock: number;
@@ -190,6 +193,9 @@ export async function getProductBySlug(
       name: true,
       slug: true,
       description: true,
+      seoTitle: true,
+      seoDescription: true,
+      seoKeywords: true,
       price: true,
       compareAtPrice: true,
       featuredImage: { select: { id: true, url: true, originalName: true } },

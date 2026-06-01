@@ -36,6 +36,18 @@ export const productSchema = z.object({
   name: z.string().min(2),
   slug: z.string().min(2),
   description: z.string().min(10),
+  seoTitle: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.string().optional()
+  ),
+  seoDescription: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.string().optional()
+  ),
+  seoKeywords: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.string().optional()
+  ),
   price: z.number().nonnegative(),
   compareAtPrice: z.number().nonnegative().optional(),
   featuredImageId: z.string().optional().nullable(),

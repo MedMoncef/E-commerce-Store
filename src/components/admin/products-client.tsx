@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { AlertTriangle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -38,6 +39,18 @@ const formSchema = z.object({
   name: z.string().min(2),
   slug: z.string().min(2),
   description: z.string().min(10),
+  seoTitle: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.string().optional()
+  ),
+  seoDescription: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.string().optional()
+  ),
+  seoKeywords: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.string().optional()
+  ),
   price: z.coerce.number().nonnegative(),
   compareAtPrice: z.preprocess(
     (value) => (value === "" ? undefined : Number(value)),
@@ -73,6 +86,9 @@ type AdminProductsClientProps = {
     price: number;
     compareAtPrice: number | null;
     description: string;
+    seoTitle: string | null;
+    seoDescription: string | null;
+    seoKeywords: string | null;
     stock: number;
     isActive: boolean;
     featuredImage: MediaItem | null;
@@ -110,6 +126,7 @@ export function AdminProductsClient({
   const [showCategoryForm, setShowCategoryForm] = useState(false);
   const [showSizeForm, setShowSizeForm] = useState(false);
   const [showColorForm, setShowColorForm] = useState(false);
+  const [showSeoPanel, setShowSeoPanel] = useState(false);
   const [newBrandName, setNewBrandName] = useState("");
   const [newCategoryName, setNewCategoryName] = useState("");
   const [newSizeName, setNewSizeName] = useState("");
@@ -173,6 +190,9 @@ export function AdminProductsClient({
       name: "",
       slug: "",
       description: "",
+      seoTitle: "",
+      seoDescription: "",
+      seoKeywords: "",
       price: 0,
       compareAtPrice: undefined,
       featuredImageId: null,
@@ -185,6 +205,15 @@ export function AdminProductsClient({
       isActive: true,
     },
   });
+
+  const [seoTitle, seoDescription, seoKeywords] = form.watch([
+    "seoTitle",
+    "seoDescription",
+    "seoKeywords",
+  ]);
+  const seoIsEmpty = ![seoTitle, seoDescription, seoKeywords].some(
+    (value) => value && value.trim().length > 0
+  );
 
   const attemptDeleteMedia = async (imageId: string) => {
     const response = await fetch(`/api/admin/media/${imageId}`, {
@@ -237,6 +266,9 @@ export function AdminProductsClient({
         name: activeProduct.name,
         slug: activeProduct.slug,
         description: activeProduct.description,
+        seoTitle: activeProduct.seoTitle ?? "",
+        seoDescription: activeProduct.seoDescription ?? "",
+        seoKeywords: activeProduct.seoKeywords ?? "",
         price: activeProduct.price,
         compareAtPrice: activeProduct.compareAtPrice ?? undefined,
         featuredImageId: activeProduct.featuredImage?.id ?? null,
@@ -253,6 +285,9 @@ export function AdminProductsClient({
         name: "",
         slug: "",
         description: "",
+        seoTitle: "",
+        seoDescription: "",
+        seoKeywords: "",
         price: 0,
         compareAtPrice: undefined,
         featuredImageId: null,
@@ -516,6 +551,7 @@ export function AdminProductsClient({
               setShowCategoryForm(false);
               setShowSizeForm(false);
               setShowColorForm(false);
+              setShowSeoPanel(false);
               setNewBrandName("");
               setNewCategoryName("");
               setNewSizeName("");
@@ -531,6 +567,7 @@ export function AdminProductsClient({
                 setGalleryImages([]);
                 setPendingDeleteMediaIds([]);
                 setError(null);
+                setShowSeoPanel(false);
               }}
             >
               Add product
@@ -538,9 +575,25 @@ export function AdminProductsClient({
           </DialogTrigger>
           <DialogContent className="max-h-[90vh] w-[calc(100%-2rem)] max-w-2xl overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>
-                {activeProduct ? "Edit product" : "Add product"}
-              </DialogTitle>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <DialogTitle>
+                  {activeProduct ? "Edit product" : "Add product"}
+                </DialogTitle>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-9"
+                  onClick={() => setShowSeoPanel((prev) => !prev)}
+                >
+                  <span className="flex items-center gap-2">
+                    {seoIsEmpty && (
+                      <AlertTriangle className="h-4 w-4 text-amber-500" />
+                    )}
+                    SEO
+                  </span>
+                </Button>
+              </div>
             </DialogHeader>
             <form
               onSubmit={form.handleSubmit(handleSubmit)}
@@ -575,6 +628,41 @@ export function AdminProductsClient({
               <div className="space-y-2">
                 <Label>Description</Label>
                 <Textarea {...form.register("description")} />
+              </div>
+              <div
+                className={`overflow-hidden rounded-2xl border border-border bg-muted/20 transition-all ${
+                  showSeoPanel ? "max-h-[420px] opacity-100" : "max-h-0 opacity-0"
+                }`}
+                aria-hidden={!showSeoPanel}
+              >
+                <div
+                  className={`space-y-4 p-4 ${
+                    showSeoPanel ? "" : "pointer-events-none"
+                  }`}
+                >
+                  <div className="space-y-2">
+                    <Label>SEO title</Label>
+                    <Input
+                      placeholder="Optional"
+                      {...form.register("seoTitle")}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>SEO description</Label>
+                    <Textarea
+                      placeholder="Optional"
+                      rows={3}
+                      {...form.register("seoDescription")}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>SEO keywords</Label>
+                    <Input
+                      placeholder="Comma-separated"
+                      {...form.register("seoKeywords")}
+                    />
+                  </div>
+                </div>
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
